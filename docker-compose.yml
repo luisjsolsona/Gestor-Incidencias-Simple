@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  incidencias:
+    build: .
+    container_name: gestor-incidencias
+    restart: unless-stopped
+    ports:
+      - "3010:3000"
+    volumes:
+      - incidencias_data:/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=cambia_este_secreto_en_produccion
+      - TZ=Europe/Madrid
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+volumes:
+  incidencias_data:
+    driver: local

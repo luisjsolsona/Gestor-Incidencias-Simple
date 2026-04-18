@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GestorIncidencias — Centro Educativo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --bg2: #13161e;
+    --bg3: #1a1e28;
+    --bg4: #212636;
+    --border: #2a3045;
+    --border2: #38415a;
+    --text: #e4e8f5;
+    --text2: #8b92a8;
+    --text3: #5a6178;
+    --accent: #4f8ef7;
+    --accent2: #2563eb;
+    --green: #22c55e;
+    --yellow: #f59e0b;
+    --orange: #f97316;
+    --red: #ef4444;
+    --purple: #a855f7;
+    --cyan: #06b6d4;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Syne', sans-serif;
+    --radius: 8px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* LAYOUT */
+  #app { display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* HEADER */
+  header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-icon {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .header-title {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+  }
+  .header-subtitle {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--font-mono);
+    margin-top: 1px;
+  }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .user-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  .role-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .role-admin { background: rgba(168,85,247,0.2); color: var(--purple); border: 1px solid rgba(168,85,247,0.3); }
+  .role-cofotap { background: rgba(6,182,212,0.2); color: var(--cyan); border: 1px solid rgba(6,182,212,0.3); }
+  .role-usuario { background: rgba(79,142,247,0.2); color: var(--accent); border: 1px solid rgba(79,142,247,0.3); }
+
+  /* NAV */
+  nav {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+  }
+  .nav-btn {
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    color: var(--text2);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .nav-btn:hover { color: var(--text); }
+  .nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .nav-badge {
+    background: var(--red);
+    color: white;
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+  }
+
+  /* MAIN */
+  main { flex: 1; padding: 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+  /* CARDS */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* FORMS */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid.single { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: var(--font-mono);
+  }
+  label .required { color: var(--red); }
+  input, select, textarea {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    padding: 10px 12px;
+    transition: border-color 0.15s;
+    outline: none;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    background: var(--bg4);
+  }
+  input::placeholder, textarea::placeholder { color: var(--text3); }
+  textarea { resize: vertical; min-height: 100px; }
+  select option { background: var(--bg3); }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--accent2); }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--bg3); color: var(--text); }
+  .btn-danger { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .btn-danger:hover { background: rgba(239,68,68,0.25); }
+  .btn-success { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .btn-success:hover { background: rgba(34,197,94,0.25); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-icon { padding: 7px; }
+
+  /* ESTADO BADGES */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .estado-abierta { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .estado-abierta .badge-dot { background: var(--red); animation: pulse 2s infinite; }
+  .estado-proceso { background: rgba(245,158,11,0.15); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+  .estado-proceso .badge-dot { background: var(--yellow); }
+  .estado-cerrada { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .estado-cerrada .badge-dot { background: var(--green); }
+  .estado-reabierta { background: rgba(249,115,22,0.15); color: var(--orange); border: 1px solid rgba(249,115,22,0.3); }
+  .estado-reabierta .badge-dot { background: var(--orange); animation: pulse 2s infinite; }
+  .estado-cancelada { background: rgba(90,97,120,0.2); color: var(--text3); border: 1px solid var(--border); }
+  .prioridad-alta { background: rgba(239,68,68,0.1); color: var(--red); }
+  .prioridad-normal { background: rgba(79,142,247,0.1); color: var(--accent); }
+  .prioridad-baja { background: rgba(34,197,94,0.1); color: var(--green); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    padding: 10px 12px;
+    color: var(--text3);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+  td {
+    padding: 12px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); cursor: pointer; }
+  .td-mono { font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+  .td-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  /* STATS */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-num { font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; font-family: var(--font-mono); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.15s;
+  }
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 700px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.2s;
+  }
+  .modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: var(--bg2);
+    z-index: 1;
+  }
+  .modal-body { padding: 24px; }
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  /* TOAST */
+  #toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .toast {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: slideLeft 0.2s;
+    box-shadow: var(--shadow);
+    min-width: 280px;
+  }
+  .toast-ok { border-left: 3px solid var(--green); }
+  .toast-err { border-left: 3px solid var(--red); }
+  .toast-info { border-left: 3px solid var(--accent); }
+  @keyframes slideLeft { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* HISTORIAL */
+  .timeline { padding: 0; list-style: none; }
+  .timeline-item {
+    display: flex;
+    gap: 12px;
+    padding-bottom: 16px;
+    position: relative;
+  }
+  .timeline-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 11px;
+    top: 24px;
+    bottom: 0;
+    width: 1px;
+    background: var(--border);
+  }
+  .timeline-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--bg4);
+    border: 2px solid var(--border2);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+  }
+  .timeline-content { flex: 1; }
+  .timeline-accion { font-size: 13px; font-weight: 600; }
+  .timeline-meta { font-size: 11px; color: var(--text3); font-family: var(--font-mono); margin-top: 2px; }
+
+  /* SEARCH BAR */
+  .search-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .search-bar input { flex: 1; min-width: 200px; }
+  .search-bar select { min-width: 140px; }
+
+  /* INCIDENCIA DETAIL */
+  .detail-section { margin-bottom: 20px; }
+  .detail-label {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .detail-value { font-size: 14px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* COPY BOX */
+  .copy-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text2);
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.7;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  /* EMPTY */
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text3);
+  }
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  /* SECTION TITLES */
+  .section-title {
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 4px;
+    letter-spacing: -0.5px;
+  }
+  .section-sub { font-size: 13px; color: var(--text3); margin-bottom: 24px; }
+
+  /* PUBLIC FORM highlight */
+  .public-hero {
+    background: linear-gradient(135deg, rgba(79,142,247,0.1) 0%, rgba(168,85,247,0.05) 100%);
+    border: 1px solid rgba(79,142,247,0.2);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .public-hero::before {
+    content: '🚨';
+    position: absolute;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 72px;
+    opacity: 0.08;
+  }
+
+  /* DRAG HANDLE for locations */
+  .drag-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    cursor: grab;
+  }
+  .drag-handle { color: var(--text3); cursor: grab; font-size: 16px; }
+
+  /* FILTERS */
+  .filter-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .chip {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text2);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font-mono);
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+  /* RESPONSIVE */
+  @media (max-width: 640px) {
+    main { padding: 16px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    header { padding: 0 16px; }
+    .header-subtitle { display: none; }
+  }
+
+  /* PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+  .login-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: var(--bg);
+  }
+  .login-card {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    padding: 40px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .login-logo {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .login-logo .icon { font-size: 40px; margin-bottom: 8px; }
+  .login-logo h1 { font-size: 20px; font-weight: 800; }
+  .login-logo p { font-size: 12px; color: var(--text3); margin-top: 4px; font-family: var(--font-mono); }
+
+  /* SEGMENTED CONTROL */
+  .seg-control {
+    display: flex;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 3px;
+  }
+  .seg-btn {
+    flex: 1;
+    padding: 7px;
+    border: none;
+    border-radius: 5px;
+    background: none;
+    color: var(--text3);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .seg-btn.active { background: var(--bg2); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+
+  /* DIVIDER */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+  /* PROGRESS */
+  .progress-bar-wrap { height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+  .progress-bar { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
+  /* INLINE EDIT */
+  .inline-actions { display: flex; gap: 4px; align-items: center; }
+
+  /* UBICACION CUSTOM */
+  #ubicacion-custom-wrap { display: none; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="toast-container"></div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" style="display:none">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="icon">🚨</div>
+        <h1>GestorIncidencias</h1>
+        <p>Panel de gestión — Área restringida</p>
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Usuario</label>
+        <input type="text" id="login-user" placeholder="admin / cofotap / usuario" autocomplete="username">
+      </div>
+      <div class="form-group" style="margin-bottom:24px">
+        <label>Contraseña</label>
+        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doLogin()">
+        Acceder al panel →
+      </button>
+      <hr class="divider">
+      <button class="btn btn-ghost" style="width:100%;justify-content:center;font-size:12px" onclick="showPublicForm()">
+        ← Volver al formulario de incidencias
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="main-app" style="display:none">
+  <header>
+    <div class="header-brand">
+      <div class="header-icon">🚨</div>
+      <div>
+        <div class="header-title">GestorIncidencias</div>
+        <div class="header-subtitle">Centro Educativo · v1.0</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="user-badge" id="user-badge" style="display:none">
+        <span id="user-name"></span>
+        <span class="role-tag" id="user-role-tag"></span>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btn-nueva-inc" onclick="showPublicFormModal()">+ Nueva incidencia</button>
+      <button class="btn btn-ghost btn-sm" id="btn-logout" onclick="doLogout()" style="display:none">Salir</button>
+      <button class="btn btn-ghost btn-sm" id="btn-login-nav" onclick="showLogin()">Panel gestión →</button>
+    </div>
+  </header>
+
+  <nav id="main-nav" style="display:none">
+    <button class="nav-btn active" data-page="dashboard" onclick="switchPage('dashboard', this)">
+      📊 Dashboard
+    </button>
+    <button class="nav-btn" data-page="incidencias" onclick="switchPage('incidencias', this)">
+      🗂️ Incidencias <span class="nav-badge" id="badge-abiertas" style="display:none">0</span>
+    </button>
+    <button class="nav-btn admin-only cofotap-only" data-page="gestion" onclick="switchPage('gestion', this)">
+      ⚙️ Gestión
+    </button>
+    <button class="nav-btn admin-only" data-page="ajustes" onclick="switchPage('ajustes', this)">
+      🔧 Ajustes
+    </button>
+  </nav>
+
+  <main id="main-content">
+    <!-- PUBLIC PAGE (when not logged in) -->
+    <div id="page-public" class="page active">
+      <div class="public-hero">
+        <div class="section-title">Comunicar una incidencia</div>
+        <p class="section-sub">Rellena el formulario. Te mantendremos informado del estado de tu incidencia.</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📋 Nueva incidencia</div>
+        </div>
+        <form id="form-public" onsubmit="submitPublicForm(event)">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Nombre completo <span class="required">*</span></label>
+              <input type="text" name="nombre" placeholder="Tu nombre" required>
+            </div>
+            <div class="form-group">
+              <label>Correo electrónico <span class="required">*</span></label>
+              <input type="email" name="email" placeholder="correo@iesmolinos.es" required>
+            </div>
+            <div class="form-group">
+              <label>Ubicación <span class="required">*</span></label>
+              <select name="ubicacion" id="sel-ubicacion-pub" required onchange="checkUbicacionCustom('pub')">
+                <option value="">— Selecciona ubicación —</option>
+              </select>
+            </div>
+            <div class="form-group" id="ubicacion-custom-wrap-pub" style="display:none">
+              <label>Especificar ubicación</label>
+              <input type="text" name="ubicacion_custom" placeholder="Describe la ubicación exacta">
+            </div>
+            <div class="form-group">
+              <label>Prioridad</label>
+              <select name="prioridad">
+                <option value="normal">Normal</option>
+                <option value="alta">Alta 🔴</option>
+                <option value="baja">Baja 🟢</option>
+              </select>
+            </div>
+            <div class="form-group full">
+              <label>Descripción del problema <span class="required">*</span></label>
+              <textarea name="descripcion" placeholder="Describe el problema con el mayor detalle posible: qué ocurre, desde cuándo, si hay algún error visible..." required style="min-height:130px"></textarea>
+            </div>
+          </div>
+          <div style="margin-top:20px;display:flex;justify-content:flex-end">
+            <button type="submit" class="btn btn-primary" id="btn-submit-pub">
+              🚀 Enviar incidencia
+            </button>
+          </div>
+        </form>
+      </div>
+      <div class="card" id="public-result" style="display:none">
+        <div style="text-align:center;padding:16px">
+          <div style="font-size:40px;margin-bottom:12px">✅</div>
+          <div style="font-size:18px;font-weight:800;margin-bottom:8px">Incidencia registrada</div>
+          <div style="color:var(--text3);font-size:14px;margin-bottom:16px">Tu código de seguimiento es:</div>
+          <div id="result-codigo" style="font-family:var(--font-mono);font-size:24px;font-weight:700;color:var(--accent);margin-bottom:16px"></div>
+          <button class="btn btn-ghost" onclick="document.getElementById('public-result').style.display='none';document.getElementById('form-public').style.display='block'">
+            Enviar otra incidencia
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page">
+      <div class="section-title">Dashboard</div>
+      <div class="section-sub">Resumen del estado de las incidencias</div>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🔴 Últimas incidencias abiertas</div>
+          <button class="btn btn-ghost btn-sm" onclick="switchPage('incidencias', document.querySelector('[data-page=incidencias]'))">Ver todas →</button>
+        </div>
+        <div id="dashboard-recientes"></div>
+      </div>
+    </div>
+
+    <!-- INCIDENCIAS LIST -->
+    <div id="page-incidencias" class="page">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div>
+          <div class="section-title">Incidencias</div>
+          <div class="section-sub">Gestión completa de incidencias del centro</div>
+        </div>
+        <button class="btn btn-primary" onclick="showPublicFormModal()">+ Nueva</button>
+      </div>
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="🔍 Buscar por código, nombre, descripción..." oninput="debounceSearch()">
+        <select id="filter-estado" onchange="loadIncidencias()">
+          <option value="">Todos los estados</option>
+          <option value="abierta">Abiertas</option>
+          <option value="en_proceso">En proceso</option>
+          <option value="cerrada">Cerradas</option>
+          <option value="reabierta">Reabiertas</option>
+          <option value="cancelada">Canceladas</option>
+        </select>
+      </div>
+      <div class="filter-chips" id="filter-chips">
+        <button class="chip active" onclick="setChip(this, '')">Todas</button>
+        <button class="chip" onclick="setChip(this, 'abierta')">🔴 Abiertas</button>
+        <button class="chip" onclick="setChip(this, 'en_proceso')">🟡 En proceso</button>
+        <button class="chip" onclick="setChip(this, 'cerrada')">🟢 Cerradas</button>
+        <button class="chip" onclick="setChip(this, 'reabierta')">🟠 Reabiertas</button>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th>Ubicación</th>
+                <th>Estado</th>
+                <th>Prioridad</th>
+                <th>Fecha</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabla-incidencias">
+              <tr><td colspan="7"><div class="empty-state"><p>Cargando...</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="pagination" style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);font-size:12px;color:var(--text3)"></div>
+      </div>
+    </div>
+
+    <!-- GESTIÓN (admin/cofotap) -->
+    <div id="page-gestion" class="page">
+      <div class="section-title">Gestión de incidencias</div>
+      <div class="section-sub">Vista detallada para actualizar estados y soluciones</div>
+      <div class="card">
+        <p style="color:var(--text3);font-size:13px">Selecciona una incidencia de la lista para gestionarla.</p>
+      </div>
+    </div>
+
+    <!-- AJUSTES (admin only) -->
+    <div id="page-ajustes" class="page">
+      <div class="section-title">Ajustes del sistema</div>
+      <div class="section-sub">Gestión de ubicaciones y usuarios</div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📍 Ubicaciones</div>
+          <button class="btn btn-primary btn-sm" onclick="showAddLocation()">+ Añadir</button>
+        </div>
+        <div id="locations-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">👥 Usuarios</div>
+          <button class="btn btn-primary btn-sm" onclick="showAddUser()">+ Añadir usuario</button>
+        </div>
+        <div id="users-list"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL -->
+<div id="modal" class="modal-overlay" style="display:none" onclick="closeModalOutside(event)">
+  <div class="modal" id="modal-inner">
+    <div class="modal-header">
+      <div class="card-title" id="modal-title">Modal</div>
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+let state = {
+  token: localStorage.getItem('token'),
+  role: localStorage.getItem('role'),
+  username: localStorage.getItem('username'),
+  currentPage: 'public',
+  incidencias: [],
+  locations: [],
+  searchTimeout: null,
+  currentPage_num: 1,
+  totalPages: 1,
+  filterEstado: '',
+  searchQuery: ''
+};
+
+const API = '';
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+async function init() {
+  await loadLocations();
+  if (state.token) {
+    try {
+      await verifyToken();
+      showApp();
+    } catch {
+      localStorage.clear();
+      state.token = null;
+      state.role = null;
+      showPublicOnly();
+    }
+  } else {
+    showPublicOnly();
+  }
+}
+
+async function verifyToken() {
+  const r = await apiFetch('/api/stats');
+  if (!r.ok) throw new Error('Invalid token');
+}
+
+function showPublicOnly() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'flex';
+  document.getElementById('main-app').style.flexDirection = 'column';
+  document.getElementById('main-app').style.minHeight = '100vh';
+  document.getElementById('main-nav').style.display = 'none';
+  document.getElementById('btn-login-nav').style.display = '';
+  document.getElementById('btn-logout').style.display = 'none';
+  document.getElementById('user-badge').style.display = 'none';
+  document.getElementById('btn-nueva-inc').style.display = 'none';
+  switchPage('public', null);
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'flex';
+  document.getElementById('main-app').style.flexDirection = 'column';
+  document.getElementById('main-app').style.minHeight = '100vh';
+  document.getElementById('main-nav').style.display = 'flex';
+  document.getElementById('btn-login-nav').style.display = 'none';
+  document.getElementById('btn-logout').style.display = '';
+  document.getElementById('btn-nueva-inc').style.display = '';
+  document.getElementById('user-badge').style.display = 'flex';
+  document.getElementById('user-name').textContent = state.username;
+
+  const roleTag = document.getElementById('user-role-tag');
+  roleTag.textContent = state.role;
+  roleTag.className = 'role-tag role-' + state.role;
+
+  // Show/hide role-based nav items
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = state.role === 'admin' ? '' : 'none';
+  });
+  document.querySelectorAll('.cofotap-only').forEach(el => {
+    el.style.display = (state.role === 'admin' || state.role === 'cofotap') ? '' : 'none';
+  });
+
+  switchPage('dashboard', document.querySelector('[data-page=dashboard]'));
+  loadStats();
+  loadIncidencias();
+  if (state.role === 'admin') {
+    loadLocationsAdmin();
+    loadUsers();
+  }
+}
+
+function showLogin() {
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'block';
+  setTimeout(() => document.getElementById('login-user').focus(), 100);
+}
+
+function showPublicForm() {
+  document.getElementById('login-screen').style.display = 'none';
+  showPublicOnly();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// API
+// ═══════════════════════════════════════════════════════════════════
+async function apiFetch(url, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+  const r = await fetch(API + url, { ...opts, headers });
+  return r;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════════
+async function doLogin() {
+  const user = document.getElementById('login-user').value;
+  const pass = document.getElementById('login-pass').value;
+  if (!user || !pass) return toast('Introduce usuario y contraseña', 'err');
+
+  try {
+    const r = await fetch(API + '/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user, password: pass })
+    });
+    const data = await r.json();
+    if (!r.ok) return toast(data.error || 'Error de acceso', 'err');
+
+    state.token = data.token;
+    state.role = data.role;
+    state.username = data.username;
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('role', data.role);
+    localStorage.setItem('username', data.username);
+
+    showApp();
+    toast(`Bienvenido/a, ${data.username}`, 'ok');
+  } catch (e) {
+    toast('Error de conexión', 'err');
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') {
+    doLogin();
+  }
+});
+
+function doLogout() {
+  localStorage.clear();
+  state.token = null; state.role = null; state.username = null;
+  showPublicOnly();
+  toast('Sesión cerrada', 'info');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════
+function switchPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name)?.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  state.currentPage = name;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LOCATIONS
+// ═══════════════════════════════════════════════════════════════════
+async function loadLocations() {
+  try {
+    const r = await fetch(API + '/api/locations');
+    const data = await r.json();
+    state.locations = data;
+    populateLocationSelects();
+  } catch {}
+}
+
+function populateLocationSelects() {
+  const selPub = document.getElementById('sel-ubicacion-pub');
+  if (selPub) {
+    const current = selPub.value;
+    selPub.innerHTML = '<option value="">— Selecciona ubicación —</option>';
+    state.locations.forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l.name;
+      opt.textContent = l.name;
+      selPub.appendChild(opt);
+    });
+    const otra = document.createElement('option');
+    otra.value = '__otra__';
+    otra.textContent = '📍 Otra ubicación...';
+    selPub.appendChild(otra);
+    if (current) selPub.value = current;
+  }
+}
+
+function checkUbicacionCustom(suffix) {
+  const sel = document.getElementById('sel-ubicacion-' + suffix);
+  const wrap = document.getElementById('ubicacion-custom-wrap-' + suffix);
+  if (sel && wrap) {
+    wrap.style.display = sel.value === '__otra__' ? '' : 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PUBLIC FORM
+// ═══════════════════════════════════════════════════════════════════
+async function submitPublicForm(e) {
+  e.preventDefault();
+  const form = e.target;
+  const data = Object.fromEntries(new FormData(form));
+  if (data.ubicacion === '__otra__') {
+    if (!data.ubicacion_custom?.trim()) {
+      return toast('Especifica la ubicación', 'err');
+    }
+    data.ubicacion = 'Otra';
+  }
+  const btn = document.getElementById('btn-submit-pub');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+  try {
+    const r = await fetch(API + '/api/incidencias', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const res = await r.json();
+    if (!r.ok) { toast(res.error || 'Error al enviar', 'err'); return; }
+    document.getElementById('result-codigo').textContent = res.codigo;
+    form.style.display = 'none';
+    form.reset();
+    document.getElementById('public-result').style.display = '';
+    toast('Incidencia enviada: ' + res.codigo, 'ok');
+  } catch { toast('Error de conexión', 'err'); }
+  finally { btn.disabled = false; btn.textContent = '🚀 Enviar incidencia'; }
+}
+
+function showPublicFormModal() {
+  openModal('📋 Nueva incidencia', buildPublicFormModal(), [
+    { label: '🚀 Enviar', cls: 'btn-primary', fn: 'submitPublicModal' },
+    { label: 'Cancelar', cls: 'btn-ghost', fn: 'closeModal' }
+  ]);
+}
+
+function buildPublicFormModal() {
+  const locs = state.locations.map(l => `<option value="${l.name}">${l.name}</option>`).join('');
+  return `
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Nombre <span class="required">*</span></label>
+        <input id="m-nombre" type="text" placeholder="Tu nombre" required>
+      </div>
+      <div class="form-group">
+        <label>Email <span class="required">*</span></label>
+        <input id="m-email" type="email" placeholder="correo@iesmolinos.es" required>
+      </div>
+      <div class="form-group">
+        <label>Ubicación <span class="required">*</span></label>
+        <select id="sel-ubicacion-modal" onchange="checkUbicacionCustom('modal')">
+          <option value="">— Selecciona —</option>
+          ${locs}
+          <option value="__otra__">📍 Otra ubicación...</option>
+        </select>
+      </div>
+      <div class="form-group" id="ubicacion-custom-wrap-modal" style="display:none">
+        <label>Especificar</label>
+        <input id="m-ubicacion-custom" type="text" placeholder="Describe la ubicación">
+      </div>
+      <div class="form-group">
+        <label>Prioridad</label>
+        <select id="m-prioridad">
+          <option value="normal">Normal</option>
+          <option value="alta">Alta 🔴</option>
+          <option value="baja">Baja 🟢</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Descripción <span class="required">*</span></label>
+        <textarea id="m-descripcion" placeholder="Describe el problema..." style="min-height:100px"></textarea>
+      </div>
+    </div>`;
+}
+
+async function submitPublicModal() {
+  const nombre = document.getElementById('m-nombre').value;
+  const email = document.getElementById('m-email').value;
+  const ubicacion = document.getElementById('sel-ubicacion-modal').value;
+  const ubicacion_custom = document.getElementById('m-ubicacion-custom')?.value;
+  const descripcion = document.getElementById('m-descripcion').value;
+  const prioridad = document.getElementById('m-prioridad').value;
+  if (!nombre || !email || !ubicacion || !descripcion) return toast('Rellena todos los campos obligatorios', 'err');
+
+  const payload = { nombre, email, descripcion, prioridad,
+    ubicacion: ubicacion === '__otra__' ? 'Otra' : ubicacion,
+    ubicacion_custom: ubicacion === '__otra__' ? ubicacion_custom : undefined
+  };
+  try {
+    const r = await fetch(API + '/api/incidencias', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const res = await r.json();
+    if (!r.ok) return toast(res.error || 'Error', 'err');
+    closeModal();
+    toast('✅ Incidencia creada: ' + res.codigo, 'ok');
+    loadIncidencias(); loadStats();
+  } catch { toast('Error de conexión', 'err'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════════════════════════
+async function loadStats() {
+  try {
+    const r = await apiFetch('/api/stats');
+    const data = await r.json();
+    renderStats(data);
+  } catch {}
+}
+
+function renderStats(data) {
+  const estMap = { abierta: ['🔴', 'var(--red)'], en_proceso: ['🟡', 'var(--yellow)'],
+    cerrada: ['🟢', 'var(--green)'], reabierta: ['🟠', 'var(--orange)'], cancelada: ['⚫', 'var(--text3)'] };
+  const grid = document.getElementById('stats-grid');
+  if (!grid) return;
+
+  let html = `<div class="stat-card">
+    <div class="stat-num" style="color:var(--accent)">${data.total}</div>
+    <div class="stat-label">Total</div>
+  </div>`;
+  data.estados.forEach(e => {
+    const [icon, color] = estMap[e.estado] || ['•', 'var(--text)'];
+    html += `<div class="stat-card">
+      <div class="stat-num" style="color:${color}">${e.c}</div>
+      <div class="stat-label">${icon} ${e.estado}</div>
+    </div>`;
+  });
+  grid.innerHTML = html;
+
+  // Badge
+  const abiertas = data.estados.find(e => e.estado === 'abierta');
+  const badge = document.getElementById('badge-abiertas');
+  if (abiertas && abiertas.c > 0) {
+    badge.textContent = abiertas.c;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+
+  // Recientes
+  const recEl = document.getElementById('dashboard-recientes');
+  if (recEl) {
+    if (!data.ultimasAbiertas?.length) {
+      recEl.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>No hay incidencias abiertas</p></div>';
+    } else {
+      recEl.innerHTML = `<div class="table-wrap"><table>
+        <thead><tr><th>Código</th><th>Descripción</th><th>Ubicación</th><th>Fecha</th></tr></thead>
+        <tbody>${data.ultimasAbiertas.map(i => `
+          <tr onclick="openIncidencia(${i.id})" style="cursor:pointer">
+            <td class="td-mono">${i.codigo}</td>
+            <td>${escHtml(i.descripcion.substring(0, 60))}${i.descripcion.length > 60 ? '…' : ''}</td>
+            <td>${escHtml(i.ubicacion)}</td>
+            <td style="font-size:11px;color:var(--text3)">${formatDate(i.fecha_creacion)}</td>
+          </tr>`).join('')}
+        </tbody></table></div>`;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INCIDENCIAS LIST
+// ═══════════════════════════════════════════════════════════════════
+let searchTimeout = null;
+function debounceSearch() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => { state.currentPage_num = 1; loadIncidencias(); }, 350);
+}
+
+function setChip(el, estado) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('filter-estado').value = estado;
+  state.filterEstado = estado;
+  state.currentPage_num = 1;
+  loadIncidencias();
+}
+
+async function loadIncidencias() {
+  const search = document.getElementById('search-input')?.value || '';
+  const estado = document.getElementById('filter-estado')?.value || '';
+  const page = state.currentPage_num;
+  const params = new URLSearchParams({ page, limit: 20 });
+  if (search) params.set('search', search);
+  if (estado) params.set('estado', estado);
+  try {
+    const r = await apiFetch('/api/incidencias?' + params);
+    if (!r.ok) return;
+    const data = await r.json();
+    state.incidencias = data.data;
+    state.totalPages = data.pages;
+    renderIncidencias(data);
+  } catch {}
+}
+
+function renderIncidencias(data) {
+  const tbody = document.getElementById('tabla-incidencias');
+  if (!tbody) return;
+  if (!data.data.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📂</div><p>No hay incidencias</p></div></td></tr>';
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+  tbody.innerHTML = data.data.map(i => `
+    <tr onclick="openIncidencia(${i.id})">
+      <td class="td-mono">${i.codigo}</td>
+      <td>
+        <div>${escHtml(i.nombre)}</div>
+        <div class="td-sub">${escHtml(i.descripcion.substring(0, 50))}${i.descripcion.length > 50 ? '…' : ''}</div>
+      </td>
+      <td>${escHtml(i.ubicacion)}${i.ubicacion_custom ? `<div class="td-sub">${escHtml(i.ubicacion_custom)}</div>` : ''}</td>
+      <td>${badgeEstado(i.estado)}</td>
+      <td><span class="badge prioridad-${i.prioridad}">${i.prioridad}</span></td>
+      <td style="font-size:11px;color:var(--text3)">${formatDate(i.fecha_creacion)}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openIncidencia(${i.id})">Ver →</button></td>
+    </tr>`).join('');
+
+  const pag = document.getElementById('pagination');
+  pag.innerHTML = `
+    <span>Mostrando ${data.data.length} de ${data.total} incidencias</span>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-ghost btn-sm" ${data.page <= 1 ? 'disabled' : ''} onclick="changePage(${data.page - 1})">← Anterior</button>
+      <span style="padding:5px 10px;background:var(--bg3);border-radius:6px;border:1px solid var(--border)">${data.page}/${data.pages}</span>
+      <button class="btn btn-ghost btn-sm" ${data.page >= data.pages ? 'disabled' : ''} onclick="changePage(${data.page + 1})">Siguiente →</button>
+    </div>`;
+}
+
+function changePage(p) {
+  state.currentPage_num = p;
+  loadIncidencias();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INCIDENCIA DETAIL MODAL
+// ═══════════════════════════════════════════════════════════════════
+async function openIncidencia(id) {
+  try {
+    const r = await apiFetch('/api/incidencias/' + id);
+    const inc = await r.json();
+    renderIncidenciaModal(inc);
+  } catch { toast('Error al cargar incidencia', 'err'); }
+}
+
+function renderIncidenciaModal(inc) {
+  const canEdit = state.role === 'admin' || state.role === 'cofotap';
+  const historial = JSON.parse(inc.historial || '[]');
+
+  const ubicacionFull = inc.ubicacion + (inc.ubicacion_custom ? ` — ${inc.ubicacion_custom}` : '');
+
+  const body = `
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
+      <div style="font-family:var(--font-mono);font-size:18px;font-weight:700;color:var(--accent)">${inc.codigo}</div>
+      ${badgeEstado(inc.estado)}
+      <span class="badge prioridad-${inc.prioridad}">${inc.prioridad}</span>
+      ${inc.asignado_a ? `<span class="badge" style="background:rgba(6,182,212,0.1);color:var(--cyan);border:1px solid rgba(6,182,212,0.3)">👤 ${inc.asignado_a}</span>` : ''}
+    </div>
+
+    <div class="detail-grid" style="margin-bottom:20px">
+      <div><div class="detail-label">Solicitante</div><div class="detail-value">${escHtml(inc.nombre)}</div></div>
+      <div><div class="detail-label">Email</div>
+        <div class="detail-value"><a href="mailto:${escHtml(inc.email)}" style="color:var(--accent)">${escHtml(inc.email)}</a></div>
+      </div>
+      <div><div class="detail-label">Ubicación</div><div class="detail-value">${escHtml(ubicacionFull)}</div></div>
+      <div><div class="detail-label">Fecha creación</div><div class="detail-value">${formatDateLong(inc.fecha_creacion)}</div></div>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div class="detail-label">Descripción del problema</div>
+      <div style="margin-top:6px;padding:12px;background:var(--bg3);border-radius:6px;font-size:14px;line-height:1.7">${escHtml(inc.descripcion)}</div>
+    </div>
+
+    ${canEdit ? `
+    <div style="margin-bottom:20px">
+      <div class="detail-label" style="margin-bottom:8px">Actualizar estado</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${['abierta','en_proceso','cerrada','reabierta','cancelada'].map(e =>
+          `<button class="btn btn-sm ${inc.estado === e ? 'btn-primary' : 'btn-ghost'}" onclick="updateEstado(${inc.id}, '${e}')">${estadoLabel(e)}</button>`
+        ).join('')}
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div class="detail-label" style="margin-bottom:6px">Asignar a</div>
+      <input id="inc-asignado" type="text" value="${escHtml(inc.asignado_a || '')}" placeholder="Nombre del técnico responsable">
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div class="detail-label" style="margin-bottom:6px">Solución / Resolución</div>
+      <textarea id="inc-solucion" style="min-height:120px" placeholder="Describe cómo se resolvió la incidencia...">${escHtml(inc.solucion || '')}</textarea>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+      <button class="btn btn-success" onclick="saveIncidencia(${inc.id})">💾 Guardar cambios</button>
+      <button class="btn btn-ghost" onclick="copyIncidencia(${inc.id})">📋 Copiar resumen</button>
+    </div>` : `
+    ${inc.solucion ? `<div style="margin-bottom:20px">
+      <div class="detail-label">Solución</div>
+      <div style="margin-top:6px;padding:12px;background:rgba(34,197,94,0.05);border:1px solid rgba(34,197,94,0.2);border-radius:6px;font-size:14px;line-height:1.7">${escHtml(inc.solucion)}</div>
+    </div>` : ''}
+    <button class="btn btn-ghost btn-sm" onclick="copyIncidencia(${inc.id})">📋 Copiar resumen</button>
+    `}
+
+    <hr class="divider">
+    <div class="detail-label" style="margin-bottom:12px">Historial</div>
+    <ul class="timeline">
+      ${historial.reverse().map(h => `
+        <li class="timeline-item">
+          <div class="timeline-dot">📌</div>
+          <div class="timeline-content">
+            <div class="timeline-accion">${escHtml(h.accion)}</div>
+            <div class="timeline-meta">${h.usuario} · ${formatDateLong(h.fecha)}</div>
+          </div>
+        </li>`).join('')}
+    </ul>`;
+
+  openModal(`Incidencia ${inc.codigo}`, body, [
+    { label: '✕ Cerrar', cls: 'btn-ghost', fn: 'closeModal' }
+  ]);
+
+  // Store inc in window for copy
+  window._currentInc = inc;
+}
+
+async function updateEstado(id, estado) {
+  try {
+    const r = await apiFetch('/api/incidencias/' + id, {
+      method: 'PUT',
+      body: JSON.stringify({ estado })
+    });
+    if (!r.ok) return toast('Error al actualizar', 'err');
+    toast('Estado actualizado: ' + estadoLabel(estado), 'ok');
+    closeModal();
+    loadIncidencias(); loadStats();
+  } catch { toast('Error de conexión', 'err'); }
+}
+
+async function saveIncidencia(id) {
+  const solucion = document.getElementById('inc-solucion')?.value;
+  const asignado_a = document.getElementById('inc-asignado')?.value;
+  try {
+    const r = await apiFetch('/api/incidencias/' + id, {
+      method: 'PUT',
+      body: JSON.stringify({ solucion, asignado_a })
+    });
+    if (!r.ok) return toast('Error al guardar', 'err');
+    toast('Cambios guardados', 'ok');
+    closeModal();
+    loadIncidencias(); loadStats();
+  } catch { toast('Error de conexión', 'err'); }
+}
+
+function copyIncidencia(id) {
+  const inc = window._currentInc;
+  if (!inc) return;
+  const ubicacionFull = inc.ubicacion + (inc.ubicacion_custom ? ` — ${inc.ubicacion_custom}` : '');
+  const text = `═══════════════════════════════════════
+INCIDENCIA: ${inc.codigo}
+═══════════════════════════════════════
+Estado:       ${inc.estado.toUpperCase()}
+Prioridad:    ${inc.prioridad}
+Fecha:        ${formatDateLong(inc.fecha_creacion)}
+Solicitante:  ${inc.nombre} <${inc.email}>
+Ubicación:    ${ubicacionFull}
+${inc.asignado_a ? `Asignado a:   ${inc.asignado_a}\n` : ''}
+DESCRIPCIÓN DEL PROBLEMA:
+${inc.descripcion}
+${inc.solucion ? `\nSOLUCIÓN / RESOLUCIÓN:\n${inc.solucion}` : ''}
+═══════════════════════════════════════`;
+
+  navigator.clipboard.writeText(text).then(() => toast('Resumen copiado al portapapeles', 'ok'));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ADMIN: LOCATIONS
+// ═══════════════════════════════════════════════════════════════════
+async function loadLocationsAdmin() {
+  await loadLocations();
+  const el = document.getElementById('locations-list');
+  if (!el) return;
+  if (!state.locations.length) {
+    el.innerHTML = '<p style="color:var(--text3);font-size:13px;padding:8px">No hay ubicaciones configuradas.</p>';
+    return;
+  }
+  el.innerHTML = state.locations.map(l => `
+    <div class="drag-item" id="loc-${l.id}">
+      <span class="drag-handle">⠿</span>
+      <span style="flex:1;font-size:13px">${escHtml(l.name)}</span>
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="editLocation(${l.id}, '${escJs(l.name)}')">✏️</button>
+      <button class="btn btn-danger btn-sm btn-icon" onclick="deleteLocation(${l.id})">🗑️</button>
+    </div>`).join('');
+}
+
+function showAddLocation() {
+  openModal('📍 Nueva ubicación', `
+    <div class="form-group">
+      <label>Nombre de la ubicación</label>
+      <input id="new-loc-name" type="text" placeholder="Ej: Aula 3.05">
+    </div>`, [
+    { label: 'Añadir', cls: 'btn-primary', fn: 'addLocation' },
+    { label: 'Cancelar', cls: 'btn-ghost', fn: 'closeModal' }
+  ]);
+  setTimeout(() => document.getElementById('new-loc-name').focus(), 100);
+}
+
+async function addLocation() {
+  const name = document.getElementById('new-loc-name').value;
+  if (!name.trim()) return toast('Introduce un nombre', 'err');
+  try {
+    const r = await apiFetch('/api/locations', { method: 'POST', body: JSON.stringify({ name }) });
+    if (!r.ok) return toast('Error al añadir', 'err');
+    toast('Ubicación añadida', 'ok');
+    closeModal();
+    loadLocationsAdmin();
+    loadLocations();
+  } catch { toast('Error de conexión', 'err'); }
+}
+
+function editLocation(id, currentName) {
+  openModal('✏️ Editar ubicación', `
+    <div class="form-group">
+      <label>Nombre</label>
+      <input id="edit-loc-name" type="text" value="${escHtml(currentName)}">
+    </div>`, [
+    { label: 'Guardar', cls: 'btn-primary', fn: `saveLocation(${id})` },
+    { label: 'Cancelar', cls: 'btn-ghost', fn: 'closeModal' }
+  ]);
+}
+
+async function saveLocation(id) {
+  const name = document.getElementById('edit-loc-name').value;
+  if (!name.trim()) return;
+  const r = await apiFetch('/api/locations/' + id, { method: 'PUT', body: JSON.stringify({ name }) });
+  if (!r.ok) return toast('Error', 'err');
+  toast('Ubicación actualizada', 'ok');
+  closeModal();
+  loadLocationsAdmin();
+  loadLocations();
+}
+
+async function deleteLocation(id) {
+  if (!confirm('¿Desactivar esta ubicación?')) return;
+  const r = await apiFetch('/api/locations/' + id, { method: 'DELETE' });
+  if (!r.ok) return toast('Error', 'err');
+  toast('Ubicación eliminada', 'ok');
+  loadLocationsAdmin();
+  loadLocations();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ADMIN: USERS
+// ═══════════════════════════════════════════════════════════════════
+async function loadUsers() {
+  const r = await apiFetch('/api/users');
+  if (!r.ok) return;
+  const users = await r.json();
+  const el = document.getElementById('users-list');
+  if (!el) return;
+  el.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>Usuario</th><th>Rol</th><th>Creado</th><th></th></tr></thead>
+    <tbody>${users.map(u => `
+      <tr>
+        <td style="font-family:var(--font-mono);font-size:13px">${escHtml(u.username)}</td>
+        <td><span class="role-tag role-${u.role}">${u.role}</span></td>
+        <td style="font-size:11px;color:var(--text3)">${formatDate(u.created_at)}</td>
+        <td class="inline-actions">
+          <button class="btn btn-ghost btn-sm" onclick="editUser(${u.id}, '${escJs(u.role)}')">Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">🗑️</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function showAddUser() {
+  openModal('👤 Nuevo usuario', `
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Nombre de usuario</label>
+        <input id="nu-user" type="text" placeholder="usuario123">
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input id="nu-pass" type="password" placeholder="Mínimo 6 caracteres">
+      </div>
+      <div class="form-group">
+        <label>Rol</label>
+        <select id="nu-role">
+          <option value="usuario">Usuario</option>
+          <option value="cofotap">Cofotap</option>
+          <option value="admin">Administrador</option>
+        </select>
+      </div>
+    </div>`, [
+    { label: 'Crear usuario', cls: 'btn-primary', fn: 'createUser' },
+    { label: 'Cancelar', cls: 'btn-ghost', fn: 'closeModal' }
+  ]);
+}
+
+async function createUser() {
+  const username = document.getElementById('nu-user').value;
+  const password = document.getElementById('nu-pass').value;
+  const role = document.getElementById('nu-role').value;
+  if (!username || !password) return toast('Rellena todos los campos', 'err');
+  const r = await apiFetch('/api/users', { method: 'POST', body: JSON.stringify({ username, password, role }) });
+  const data = await r.json();
+  if (!r.ok) return toast(data.error || 'Error', 'err');
+  toast('Usuario creado', 'ok');
+  closeModal();
+  loadUsers();
+}
+
+function editUser(id, currentRole) {
+  openModal('✏️ Editar usuario', `
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Nueva contraseña <span style="color:var(--text3)">(dejar vacío para no cambiar)</span></label>
+        <input id="eu-pass" type="password" placeholder="Nueva contraseña">
+      </div>
+      <div class="form-group">
+        <label>Rol</label>
+        <select id="eu-role">
+          <option value="usuario" ${currentRole === 'usuario' ? 'selected' : ''}>Usuario</option>
+          <option value="cofotap" ${currentRole === 'cofotap' ? 'selected' : ''}>Cofotap</option>
+          <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Administrador</option>
+        </select>
+      </div>
+    </div>`, [
+    { label: 'Guardar', cls: 'btn-primary', fn: `saveUser(${id})` },
+    { label: 'Cancelar', cls: 'btn-ghost', fn: 'closeModal' }
+  ]);
+}
+
+async function saveUser(id) {
+  const password = document.getElementById('eu-pass').value;
+  const role = document.getElementById('eu-role').value;
+  const r = await apiFetch('/api/users/' + id, { method: 'PUT', body: JSON.stringify({ password: password || undefined, role }) });
+  if (!r.ok) return toast('Error', 'err');
+  toast('Usuario actualizado', 'ok');
+  closeModal();
+  loadUsers();
+}
+
+async function deleteUser(id) {
+  if (!confirm('¿Eliminar este usuario?')) return;
+  const r = await apiFetch('/api/users/' + id, { method: 'DELETE' });
+  const data = await r.json();
+  if (!r.ok) return toast(data.error || 'Error', 'err');
+  toast('Usuario eliminado', 'ok');
+  loadUsers();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════════════════════
+function openModal(title, body, buttons = []) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = body;
+  const footer = document.getElementById('modal-footer');
+  footer.innerHTML = buttons.map(b =>
+    `<button class="btn ${b.cls}" onclick="${b.fn}">${b.label}</button>`
+  ).join('');
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function closeModal() { document.getElementById('modal').style.display = 'none'; }
+function closeModalOutside(e) { if (e.target === document.getElementById('modal')) closeModal(); }
+
+// ═══════════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════════
+function badgeEstado(estado) {
+  const labels = { abierta: '🔴 Abierta', en_proceso: '🟡 En proceso', cerrada: '🟢 Cerrada', reabierta: '🟠 Reabierta', cancelada: '⚫ Cancelada' };
+  const cls = { abierta: 'estado-abierta', en_proceso: 'estado-proceso', cerrada: 'estado-cerrada', reabierta: 'estado-reabierta', cancelada: 'estado-cancelada' };
+  return `<span class="badge ${cls[estado] || ''}">${labels[estado] || estado}</span>`;
+}
+
+function estadoLabel(e) {
+  const m = { abierta: '🔴 Abierta', en_proceso: '🟡 En proceso', cerrada: '🟢 Cerrada', reabierta: '🟠 Reabierta', cancelada: '⚫ Cancelada' };
+  return m[e] || e;
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatDateLong(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function escJs(str) {
+  return String(str || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+}
+
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.innerHTML = `<span>${type === 'ok' ? '✅' : type === 'err' ? '❌' : 'ℹ️'}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
