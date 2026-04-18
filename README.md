@@ -28,15 +28,6 @@ docker-compose up -d
 
 Acceder en: http://localhost:3010
 
-## Sin Docker (desarrollo)
-
-```bash
-npm install
-npm start
-# o
-npm run dev
-```
-
 ## Credenciales por defecto
 
 | Usuario   | Contraseña   | Rol      |
