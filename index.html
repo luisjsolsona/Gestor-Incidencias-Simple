@@ -699,6 +699,18 @@
               <textarea name="descripcion" placeholder="Describe el problema con el mayor detalle posible: qué ocurre, desde cuándo, si hay algún error visible..." required style="min-height:130px"></textarea>
             </div>
           </div>
+          <div class="form-group full" style="margin-top:4px">
+            <label>📎 Adjuntar foto o archivo <span style="color:var(--text3);font-weight:400">(opcional, máx 10MB)</span></label>
+            <div class="drop-zone" id="pub-drop-zone"
+                 onclick="document.getElementById('pub-files').click()"
+                 ondragover="event.preventDefault();this.classList.add('dragover')"
+                 ondragleave="this.classList.remove('dragover')"
+                 ondrop="handlePubFileDrop(event)">
+              📁 Haz clic o arrastra imágenes / PDF aquí
+            </div>
+            <input type="file" id="pub-files" multiple accept="image/*,.pdf,.doc,.docx" style="display:none" onchange="handlePubFiles(event)">
+            <div class="attachment-grid" id="pub-attachments-preview"></div>
+          </div>
           <div style="margin-top:20px;display:flex;justify-content:flex-end">
             <button type="submit" class="btn btn-primary" id="btn-submit-pub">
               🚀 Enviar incidencia
@@ -1047,11 +1059,10 @@ async function submitPublicForm(e) {
   const form = e.target;
   const data = Object.fromEntries(new FormData(form));
   if (data.ubicacion === '__otra__') {
-    if (!data.ubicacion_custom?.trim()) {
-      return toast('Especifica la ubicación', 'err');
-    }
+    if (!data.ubicacion_custom?.trim()) return toast('Especifica la ubicación', 'err');
     data.ubicacion = 'Otra';
   }
+  data.attachments = window._pubAttachments || [];
   const btn = document.getElementById('btn-submit-pub');
   btn.disabled = true;
   btn.textContent = 'Enviando...';
@@ -1066,10 +1077,52 @@ async function submitPublicForm(e) {
     document.getElementById('result-codigo').textContent = res.codigo;
     form.style.display = 'none';
     form.reset();
+    window._pubAttachments = [];
+    document.getElementById('pub-attachments-preview').innerHTML = '';
     document.getElementById('public-result').style.display = '';
     toast('Incidencia enviada: ' + res.codigo, 'ok');
   } catch { toast('Error de conexión', 'err'); }
   finally { btn.disabled = false; btn.textContent = '🚀 Enviar incidencia'; }
+}
+
+function handlePubFiles(event) {
+  processPubFiles(Array.from(event.target.files));
+  event.target.value = '';
+}
+
+function handlePubFileDrop(event) {
+  event.preventDefault();
+  document.getElementById('pub-drop-zone').classList.remove('dragover');
+  processPubFiles(Array.from(event.dataTransfer.files));
+}
+
+function processPubFiles(files) {
+  if (!window._pubAttachments) window._pubAttachments = [];
+  files.forEach(file => {
+    if (file.size > 10 * 1024 * 1024) return toast(`${file.name}: máx 10MB`, 'err');
+    const reader = new FileReader();
+    reader.onload = e => {
+      window._pubAttachments.push({ name: file.name, type: file.type, data: e.target.result });
+      renderPubAttachmentPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderPubAttachmentPreview() {
+  const el = document.getElementById('pub-attachments-preview');
+  if (!el) return;
+  el.innerHTML = (window._pubAttachments || []).map((a, i) => {
+    if (a.type.startsWith('image/')) {
+      return `<div class="attachment-thumb">
+        <img src="${a.data}" alt="${escHtml(a.name)}" onclick="openLightbox('${escJs(a.data)}')">
+        <button class="attachment-del" onclick="window._pubAttachments.splice(${i},1);renderPubAttachmentPreview()">✕</button>
+      </div>`;
+    }
+    return `<span class="attachment-file">📄 ${escHtml(a.name)}
+      <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px" onclick="window._pubAttachments.splice(${i},1);renderPubAttachmentPreview()">✕</button>
+    </span>`;
+  }).join('');
 }
 
 function showPublicFormModal() {

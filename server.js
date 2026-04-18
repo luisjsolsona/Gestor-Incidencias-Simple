@@ -153,7 +153,7 @@ app.post('/api/locations/reorder', authMiddleware(['admin']), (req, res) => {
 
 // ── INCIDENCIAS (PUBLIC CREATE) ───────────────────────────────────────────────
 app.post('/api/incidencias', (req, res) => {
-  const { nombre, email, descripcion, ubicacion, ubicacion_custom, prioridad } = req.body;
+  const { nombre, email, descripcion, ubicacion, ubicacion_custom, prioridad, attachments } = req.body;
   if (!nombre || !email || !descripcion || !ubicacion) {
     return res.status(400).json({ error: 'Campos obligatorios faltantes' });
   }
@@ -165,9 +165,9 @@ app.post('/api/incidencias', (req, res) => {
     estado: 'abierta'
   }]);
   const result = db.prepare(`
-    INSERT INTO incidencias (codigo, nombre, email, descripcion, ubicacion, ubicacion_custom, prioridad, historial)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(codigo, nombre, email, descripcion, ubicacion, ubicacion_custom || null, prioridad || 'normal', historial);
+    INSERT INTO incidencias (codigo, nombre, email, descripcion, ubicacion, ubicacion_custom, prioridad, historial, attachments)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(codigo, nombre, email, descripcion, ubicacion, ubicacion_custom || null, prioridad || 'normal', historial, JSON.stringify(attachments || []));
 
   res.json({ id: result.lastInsertRowid, codigo, message: 'Incidencia creada correctamente' });
 });
