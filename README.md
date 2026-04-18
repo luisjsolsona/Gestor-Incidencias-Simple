@@ -19,8 +19,8 @@ Aplicación web para gestión de incidencias en centros educativos. Single-page 
 ## Arranque rápido con Docker
 
 ```bash
-git clone <repo>
-cd gestor-incidencias
+git clone https://github.com/luisjsolsona/Gestor-Incidencias-Simple.git
+cd Gestor-Incidencias-Simple
 
 # Cambiar JWT_SECRET en docker-compose.yml primero!
 docker-compose up -d
@@ -58,11 +58,9 @@ TZ=Europe/Madrid
 ## Estructura
 
 ```
-gestor-incidencias/
-├── src/
-│   └── server.js        # Backend Express + SQLite
-├── public/
-│   └── index.html       # Frontend SPA (single file)
+Gestor-Incidencias-Simple/
+├── server.js            # Backend Express + SQLite
+├── index.html           # Frontend SPA (single file)
 ├── Dockerfile
 ├── docker-compose.yml
 └── package.json
