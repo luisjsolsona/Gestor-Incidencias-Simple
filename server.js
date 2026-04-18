@@ -55,6 +55,9 @@ db.exec(`
   );
 `);
 
+// Migrations
+try { db.exec("ALTER TABLE incidencias ADD COLUMN attachments TEXT DEFAULT '[]'"); } catch {}
+
 // Seed default data
 const adminExists = db.prepare("SELECT id FROM users WHERE role = 'admin'").get();
 if (!adminExists) {
@@ -76,7 +79,7 @@ if (locCount.c === 0) {
   defaultLocs.forEach((name, i) => ins.run(name, i));
 }
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static(__dirname));
 
 // Auth middleware
@@ -197,7 +200,7 @@ app.put('/api/incidencias/:id', authMiddleware(['admin', 'cofotap']), (req, res)
   const inc = db.prepare('SELECT * FROM incidencias WHERE id = ?').get(req.params.id);
   if (!inc) return res.status(404).json({ error: 'No encontrada' });
 
-  const { estado, solucion, prioridad, asignado_a, descripcion } = req.body;
+  const { estado, solucion, prioridad, asignado_a, descripcion, attachments } = req.body;
   const historial = JSON.parse(inc.historial || '[]');
 
   if (estado && estado !== inc.estado) {
@@ -224,10 +227,20 @@ app.put('/api/incidencias/:id', authMiddleware(['admin', 'cofotap']), (req, res)
       prioridad = COALESCE(?, prioridad),
       asignado_a = COALESCE(?, asignado_a),
       descripcion = COALESCE(?, descripcion),
+      attachments = COALESCE(?, attachments),
       historial = ?,
       fecha_actualizacion = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(estado || null, solucion !== undefined ? solucion : null, prioridad || null, asignado_a || null, descripcion || null, JSON.stringify(historial), req.params.id);
+  `).run(
+    estado || null,
+    solucion !== undefined ? solucion : null,
+    prioridad || null,
+    asignado_a || null,
+    descripcion || null,
+    attachments !== undefined ? JSON.stringify(attachments) : null,
+    JSON.stringify(historial),
+    req.params.id
+  );
 
   res.json({ ok: true });
 });
