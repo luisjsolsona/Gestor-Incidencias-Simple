@@ -6,7 +6,7 @@ services:
     container_name: gestor-incidencias
     restart: unless-stopped
     ports:
-      - "3010:3000"
+      - "7000:3000"
     volumes:
       - incidencias_data:/data
     environment:

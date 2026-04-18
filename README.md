@@ -26,7 +26,7 @@ cd Gestor-Incidencias-Simple
 docker-compose up -d
 ```
 
-Acceder en: http://localhost:3010
+Acceder en: http://localhost:7000
 
 ## Credenciales por defecto
 
@@ -85,4 +85,4 @@ En CasaOS, importar `docker-compose.yml` desde la tienda de apps o usar:
 cd /ruta/del/proyecto
 docker-compose up -d
 ```
-El puerto por defecto es **3010**.
+El puerto por defecto es **7000**.
