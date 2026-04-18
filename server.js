@@ -77,7 +77,7 @@ if (locCount.c === 0) {
 }
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(__dirname));
 
 // Auth middleware
 function authMiddleware(roles = []) {
@@ -286,7 +286,7 @@ app.delete('/api/users/:id', authMiddleware(['admin']), (req, res) => {
 
 // SPA fallback
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.listen(PORT, () => console.log(`🚨 Gestor de Incidencias corriendo en puerto ${PORT}`));
