@@ -17,4 +17,4 @@ ENV DB_PATH=/data/incidencias.db
 
 EXPOSE 3000
 
-CMD ["node", "src/server.js"]
+CMD ["node", "server.js"]
