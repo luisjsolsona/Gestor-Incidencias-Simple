@@ -56,7 +56,7 @@ db.exec(`
 `);
 
 // Seed default data
-const adminExists = db.prepare('SELECT id FROM users WHERE role = "admin"').get();
+const adminExists = db.prepare("SELECT id FROM users WHERE role = 'admin'").get();
 if (!adminExists) {
   const hash = bcrypt.hashSync('admin123', 10);
   db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run('admin', hash, 'admin');
