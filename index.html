@@ -574,6 +574,48 @@
   /* UBICACION CUSTOM */
   #ubicacion-custom-wrap { display: none; }
 
+  /* BULK ACTION BAR */
+  #bulk-bar {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    background: var(--accent);
+    color: white;
+    padding: 10px 16px;
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  #bulk-bar select {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.4);
+    color: white;
+    font-size: 13px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    min-width: 150px;
+  }
+  #bulk-bar select option { background: var(--bg2); color: var(--text); }
+  #bulk-bar .btn-bulk {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.35);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+  }
+  #bulk-bar .btn-bulk:hover { background: rgba(255,255,255,0.3); }
+  #bulk-bar .btn-bulk-danger { background: rgba(220,38,38,0.5); border-color: rgba(220,38,38,0.6); }
+  #bulk-bar .btn-bulk-danger:hover { background: rgba(220,38,38,0.7); }
+
+  /* CHECKBOX */
+  .row-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+
   /* QUILL OVERRIDES */
   .ql-toolbar.ql-snow { border: 1.5px solid var(--border2); border-radius: var(--radius) var(--radius) 0 0; background: var(--bg3); }
   .ql-container.ql-snow { border: 1.5px solid var(--border2); border-top: none; border-radius: 0 0 var(--radius) var(--radius); background: var(--bg2); font-family: var(--font-sans); font-size: 15px; }
@@ -773,18 +815,34 @@
         <button class="chip" onclick="setChip(this, 'cerrada')">🟢 Cerradas</button>
         <button class="chip" onclick="setChip(this, 'reabierta')">🟠 Reabiertas</button>
       </div>
+      <!-- Barra acciones masivas -->
+      <div id="bulk-bar">
+        <span id="bulk-count">0 seleccionadas</span>
+        <select id="bulk-estado-sel">
+          <option value="">— Cambiar estado a —</option>
+          <option value="abierta">🔴 Abierta</option>
+          <option value="en_proceso">🟡 En proceso</option>
+          <option value="cerrada">🟢 Cerrada</option>
+          <option value="reabierta">🟠 Reabierta</option>
+          <option value="cancelada">⚫ Cancelada</option>
+        </select>
+        <button class="btn-bulk" onclick="applyBulkEstado()">✔ Aplicar estado</button>
+        <button class="btn-bulk btn-bulk-danger admin-only" id="btn-bulk-delete" onclick="deleteBulkSelected()">🗑 Eliminar seleccionadas</button>
+        <button class="btn-bulk" style="margin-left:auto" onclick="clearSelection()">✕ Deseleccionar</button>
+      </div>
+
       <div class="card" style="padding:0">
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Código</th>
+                <th style="width:40px"><input type="checkbox" class="row-check" id="chk-all" onchange="toggleSelectAll(this)"></th>
+                <th style="width:130px">Código</th>
                 <th>Descripción</th>
-                <th>Ubicación</th>
-                <th>Estado</th>
-                <th>Prioridad</th>
-                <th>Fecha</th>
-                <th></th>
+                <th style="width:150px">Ubicación</th>
+                <th style="width:120px">Estado</th>
+                <th style="width:80px">Prioridad</th>
+                <th style="width:90px">Fecha</th>
               </tr>
             </thead>
             <tbody id="tabla-incidencias">
@@ -1302,17 +1360,19 @@ function renderIncidencias(data) {
     return;
   }
   tbody.innerHTML = data.data.map(i => `
-    <tr onclick="openIncidencia(${i.id})">
+    <tr onclick="rowClick(event,${i.id})" data-id="${i.id}">
+      <td onclick="event.stopPropagation()" style="width:40px;text-align:center">
+        <input type="checkbox" class="row-check" id="chk-${i.id}" onchange="toggleSelect(${i.id})">
+      </td>
       <td class="td-mono">${i.codigo}</td>
       <td>
-        <div>${escHtml(i.nombre)}</div>
-        <div class="td-sub">${escHtml(i.descripcion.substring(0, 50))}${i.descripcion.length > 50 ? '…' : ''}</div>
+        <div style="font-weight:600;margin-bottom:2px">${escHtml(i.nombre)}</div>
+        <div class="td-sub" style="white-space:normal;line-height:1.4">${escHtml(i.descripcion.substring(0, 120))}${i.descripcion.length > 120 ? '…' : ''}</div>
       </td>
       <td>${escHtml(i.ubicacion)}${i.ubicacion_custom ? `<div class="td-sub">${escHtml(i.ubicacion_custom)}</div>` : ''}</td>
       <td>${badgeEstado(i.estado)}</td>
       <td><span class="badge prioridad-${i.prioridad}">${i.prioridad}</span></td>
-      <td style="font-size:11px;color:var(--text3)">${formatDate(i.fecha_creacion)}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openIncidencia(${i.id})">Ver →</button></td>
+      <td style="font-size:12px;color:var(--text3);white-space:nowrap">${formatDate(i.fecha_creacion)}</td>
     </tr>`).join('');
 
   const pag = document.getElementById('pagination');
@@ -1430,9 +1490,11 @@ function renderIncidenciaModal(inc) {
         </li>`).join('')}
     </ul>`;
 
-  openModal(`Incidencia ${inc.codigo}`, body, [
-    { label: '✕ Cerrar', cls: 'btn-ghost', fn: 'closeModal' }
-  ]);
+  const footerBtns = [{ label: '✕ Cerrar', cls: 'btn-ghost', fn: 'closeModal' }];
+  if (state.role === 'admin') {
+    footerBtns.unshift({ label: '🗑 Eliminar', cls: 'btn-danger', fn: `deleteIncidencia(${inc.id})` });
+  }
+  openModal(`Incidencia ${inc.codigo}`, body, footerBtns);
 
   window._currentInc = inc;
   window._pendingAttachments = [];
@@ -1768,6 +1830,96 @@ function toast(msg, type = 'info') {
   el.innerHTML = `<span>${type === 'ok' ? '✅' : type === 'err' ? '❌' : 'ℹ️'}</span><span>${msg}</span>`;
   document.getElementById('toast-container').appendChild(el);
   setTimeout(() => el.remove(), 3500);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SELECTION & BULK ACTIONS
+// ═══════════════════════════════════════════════════════════════════
+let _selectedIds = new Set();
+
+function rowClick(event, id) {
+  if (event.target.type === 'checkbox') return;
+  openIncidencia(id);
+}
+
+function toggleSelect(id) {
+  const chk = document.getElementById('chk-' + id);
+  if (chk.checked) _selectedIds.add(id);
+  else _selectedIds.delete(id);
+  updateBulkBar();
+}
+
+function toggleSelectAll(el) {
+  document.querySelectorAll('#tabla-incidencias .row-check').forEach(chk => {
+    chk.checked = el.checked;
+    const id = parseInt(chk.id.replace('chk-', ''));
+    if (el.checked) _selectedIds.add(id);
+    else _selectedIds.delete(id);
+  });
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulk-bar');
+  const count = _selectedIds.size;
+  if (count > 0) {
+    bar.style.display = 'flex';
+    document.getElementById('bulk-count').textContent = `${count} seleccionada${count > 1 ? 's' : ''}`;
+    const delBtn = document.getElementById('btn-bulk-delete');
+    if (delBtn) delBtn.style.display = state.role === 'admin' ? '' : 'none';
+  } else {
+    bar.style.display = 'none';
+  }
+  const chkAll = document.getElementById('chk-all');
+  const allChks = document.querySelectorAll('#tabla-incidencias .row-check');
+  if (chkAll && allChks.length) {
+    chkAll.indeterminate = count > 0 && count < allChks.length;
+    chkAll.checked = count === allChks.length;
+  }
+}
+
+function clearSelection() {
+  _selectedIds.clear();
+  document.querySelectorAll('.row-check').forEach(c => c.checked = false);
+  updateBulkBar();
+}
+
+async function applyBulkEstado() {
+  const estado = document.getElementById('bulk-estado-sel').value;
+  if (!estado) return toast('Selecciona un estado', 'err');
+  if (!_selectedIds.size) return;
+  const ids = Array.from(_selectedIds);
+  let ok = 0;
+  await Promise.all(ids.map(async id => {
+    const r = await apiFetch('/api/incidencias/' + id, { method: 'PUT', body: JSON.stringify({ estado }) });
+    if (r.ok) ok++;
+  }));
+  toast(`Estado actualizado en ${ok} incidencia${ok > 1 ? 's' : ''}`, 'ok');
+  clearSelection();
+  loadIncidencias(); loadStats();
+}
+
+async function deleteBulkSelected() {
+  const ids = Array.from(_selectedIds);
+  if (!ids.length) return;
+  if (!confirm(`¿Eliminar ${ids.length} incidencia${ids.length > 1 ? 's' : ''}? Esta acción no se puede deshacer.`)) return;
+  let ok = 0;
+  await Promise.all(ids.map(async id => {
+    const r = await apiFetch('/api/incidencias/' + id, { method: 'DELETE' });
+    if (r.ok) ok++;
+  }));
+  toast(`${ok} incidencia${ok > 1 ? 's' : ''} eliminada${ok > 1 ? 's' : ''}`, 'ok');
+  clearSelection();
+  loadIncidencias(); loadStats();
+}
+
+async function deleteIncidencia(id) {
+  if (!confirm('¿Eliminar esta incidencia? Esta acción no se puede deshacer.')) return;
+  const r = await apiFetch('/api/incidencias/' + id, { method: 'DELETE' });
+  if (!r.ok) return toast('Error al eliminar', 'err');
+  toast('Incidencia eliminada', 'ok');
+  closeModal();
+  loadIncidencias(); loadStats();
 }
 
 // ═══════════════════════════════════════════════════════════════════
