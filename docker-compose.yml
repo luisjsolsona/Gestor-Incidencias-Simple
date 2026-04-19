@@ -30,7 +30,7 @@ x-casaos:
       App web para registrar y gestionar incidencias técnicas en centros educativos.
       Incluye formulario público, panel de gestión con roles (admin/cofotap/usuario),
       historial de cambios, editor WYSIWYG, adjuntos/fotos y Docker-ready.
-  icon: https://raw.githubusercontent.com/luisjsolsona/Gestor-Incidencias-Simple/main/icon.png
+  icon: https://raw.githubusercontent.com/luisjsolsona/Gestor-Incidencias-Simple/main/icon.svg
   architectures:
     - amd64
     - arm64
