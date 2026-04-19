@@ -78,11 +78,19 @@ GMAIL_APP_PASSWORD=xxxx_xxxx_xxxx_xxxx
 ```
 Y descomentar el módulo de email en `server.js` (incluido comentado).
 
-## Despliegue en CasaOS / terra
+## Despliegue en CasaOS
 
-En CasaOS, importar `docker-compose.yml` desde la tienda de apps o usar:
-```bash
-cd /ruta/del/proyecto
-docker-compose up -d
-```
-El puerto por defecto es **7000**.
+1. En CasaOS, ve a **App Store → Custom Install → Import**
+2. Clona el repositorio en tu servidor:
+   ```bash
+   git clone https://github.com/luisjsolsona/Gestor-Incidencias-Simple.git
+   cd Gestor-Incidencias-Simple
+   ```
+3. Importa el `docker-compose.yml` desde la UI de CasaOS (Custom App → Import docker-compose)  
+   o lanza directamente:
+   ```bash
+   docker compose up -d --build
+   ```
+4. Accede en `http://<ip-casaos>:7000`
+
+> ⚠️ Cambia `JWT_SECRET` en `docker-compose.yml` antes de arrancar en producción.
