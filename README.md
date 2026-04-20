@@ -15,6 +15,17 @@ Aplicación web para registrar y gestionar **incidencias técnicas** en centros 
 - Compatible con Docker en cualquier plataforma (Linux, Windows, macOS, CasaOS)
 
 ---
+### Crear incidencia
+![Comunicar incidencia](gestor-incidencias-U00.png)
+### Buscar incidencias resueltas
+![Buscador incidencias resueltas](gestor-incidencias-U01.png)
+### Gestionar incidencias
+![Administrar incidencia](gestor-incidencias-A00.png)
+### Personalización lugares, usuarios...
+![Configuración-lugares](gestor-incidencias-A02.png)
+![Configuración-usuarios](gestor-incidencias-A03.png)
+---
+
 
 ## Características particulares
 
