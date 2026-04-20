@@ -172,6 +172,21 @@ app.post('/api/incidencias', (req, res) => {
   res.json({ id: result.lastInsertRowid, codigo, message: 'Incidencia creada correctamente' });
 });
 
+// ── INCIDENCIAS (PUBLIC RESOLVED) ────────────────────────────────────────────
+app.get('/api/public/incidencias', (req, res) => {
+  const { search } = req.query;
+  let query = "SELECT id, codigo, descripcion, ubicacion, ubicacion_custom, fecha_creacion, solucion, prioridad FROM incidencias WHERE estado = 'cerrada' AND solucion IS NOT NULL AND solucion != ''";
+  const params = [];
+  if (search) {
+    query += ' AND (codigo LIKE ? OR descripcion LIKE ? OR ubicacion LIKE ? OR solucion LIKE ?)';
+    const s = `%${search}%`;
+    params.push(s, s, s, s);
+  }
+  query += ' ORDER BY fecha_actualizacion DESC LIMIT 50';
+  const rows = db.prepare(query).all(...params);
+  res.json(rows);
+});
+
 // ── INCIDENCIAS (AUTH REQUIRED) ──────────────────────────────────────────────
 app.get('/api/incidencias', authMiddleware(['admin', 'cofotap', 'usuario']), (req, res) => {
   const { estado, search, page = 1, limit = 20 } = req.query;

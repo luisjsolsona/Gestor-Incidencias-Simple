@@ -772,6 +772,20 @@
           </button>
         </div>
       </div>
+
+      <!-- INCIDENCIAS RESUELTAS (público) -->
+      <div class="card" style="margin-top:24px">
+        <div class="card-header">
+          <div class="card-title">🔍 Consulta incidencias resueltas</div>
+          <span style="font-size:13px;color:var(--text3)">Busca si tu problema ya tiene solución</span>
+        </div>
+        <div style="margin-bottom:16px">
+          <input type="text" id="pub-search-resolved" placeholder="Buscar por descripción, ubicación o solución..." oninput="searchResolved(this.value)" style="width:100%;box-sizing:border-box">
+        </div>
+        <div id="pub-resolved-list">
+          <div style="text-align:center;color:var(--text3);padding:24px">Escribe para buscar o espera a que carguen las últimas resueltas...</div>
+        </div>
+      </div>
     </div>
 
     <!-- DASHBOARD -->
@@ -960,6 +974,7 @@ function showPublicOnly() {
   document.getElementById('user-badge').style.display = 'none';
   document.getElementById('btn-nueva-inc').style.display = 'none';
   switchPage('public', null);
+  loadResolved();
 }
 
 function showApp() {
@@ -1107,6 +1122,43 @@ function checkUbicacionCustom(suffix) {
   const wrap = document.getElementById('ubicacion-custom-wrap-' + suffix);
   if (sel && wrap) {
     wrap.style.display = sel.value === '__otra__' ? '' : 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PUBLIC RESOLVED SEARCH
+// ═══════════════════════════════════════════════════════════════════
+let _resolvedDebounce = null;
+function searchResolved(q) {
+  clearTimeout(_resolvedDebounce);
+  _resolvedDebounce = setTimeout(() => loadResolved(q), 300);
+}
+
+async function loadResolved(search = '') {
+  const container = document.getElementById('pub-resolved-list');
+  if (!container) return;
+  try {
+    const url = API + '/api/public/incidencias' + (search ? `?search=${encodeURIComponent(search)}` : '');
+    const r = await fetch(url);
+    const rows = await r.json();
+    if (!rows.length) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px">No se encontraron incidencias resueltas.</div>';
+      return;
+    }
+    container.innerHTML = rows.map(inc => {
+      const ubi = inc.ubicacion + (inc.ubicacion_custom ? ` — ${inc.ubicacion_custom}` : '');
+      const sol = inc.solucion.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').substring(0, 300);
+      return `<div style="border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          <span style="font-family:var(--font-mono);font-size:12px;color:var(--accent);font-weight:600">${escHtml(inc.codigo)}</span>
+          <span style="font-size:12px;color:var(--text3)">📍 ${escHtml(ubi)}</span>
+        </div>
+        <div style="font-size:14px;color:var(--text2);margin-bottom:8px"><strong>Problema:</strong> ${escHtml(inc.descripcion).substring(0,200)}${inc.descripcion.length>200?'…':''}</div>
+        <div style="font-size:14px;background:rgba(22,163,74,0.06);border:1px solid rgba(22,163,74,0.2);border-radius:6px;padding:10px"><strong style="color:#16a34a">✅ Solución:</strong> ${escHtml(sol)}${sol.length>=300?'…':''}</div>
+      </div>`;
+    }).join('');
+  } catch {
+    container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px">Error al cargar. Inténtalo de nuevo.</div>';
   }
 }
 
@@ -1464,7 +1516,7 @@ function renderIncidenciaModal(inc) {
 
     <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
       <button class="btn btn-success" onclick="saveIncidencia(${inc.id})">💾 Guardar cambios</button>
-      <button class="btn btn-ghost" onclick="copyIncidencia(${inc.id})">📋 Copiar resumen</button>
+      <button class="btn btn-ghost" onclick="copyIncidencia(${inc.id})">📧 Copiar mensaje</button>
     </div>` : `
     ${inc.solucion ? `<div style="margin-bottom:20px">
       <div class="detail-label">Solución</div>
@@ -1474,7 +1526,7 @@ function renderIncidenciaModal(inc) {
       <div class="detail-label" style="margin-bottom:8px">📎 Adjuntos</div>
       <div class="attachment-grid">${renderAttachments(inc.attachments, false)}</div>
     </div>` : ''}
-    <button class="btn btn-ghost btn-sm" onclick="copyIncidencia(${inc.id})">📋 Copiar resumen</button>
+    <button class="btn btn-ghost btn-sm" onclick="copyIncidencia(${inc.id})">📧 Copiar mensaje</button>
     `}
 
     <hr class="divider">
@@ -1559,22 +1611,33 @@ function copyIncidencia(id) {
   const inc = window._currentInc;
   if (!inc) return;
   const ubicacionFull = inc.ubicacion + (inc.ubicacion_custom ? ` — ${inc.ubicacion_custom}` : '');
-  const text = `═══════════════════════════════════════
-INCIDENCIA: ${inc.codigo}
-═══════════════════════════════════════
-Estado:       ${inc.estado.toUpperCase()}
-Prioridad:    ${inc.prioridad}
-Fecha:        ${formatDateLong(inc.fecha_creacion)}
-Solicitante:  ${inc.nombre} <${inc.email}>
-Ubicación:    ${ubicacionFull}
-${inc.asignado_a ? `Asignado a:   ${inc.asignado_a}\n` : ''}
-DESCRIPCIÓN DEL PROBLEMA:
+  const estadoLabel = { abierta: 'Abierta', en_proceso: 'En proceso', cerrada: 'Cerrada', reabierta: 'Reabierta', cancelada: 'Cancelada' }[inc.estado] || inc.estado;
+
+  const solucionTexto = inc.solucion
+    ? inc.solucion.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').trim()
+    : '';
+
+  const asunto = `Incidencia ${inc.codigo} — ${estadoLabel}`;
+  const cuerpo = `Estimado/a,
+
+Le informamos sobre la siguiente incidencia técnica:
+
+📌 Referencia: ${inc.codigo}
+📍 Ubicación: ${ubicacionFull}
+📅 Fecha: ${formatDateLong(inc.fecha_creacion)}
+🔴 Estado: ${estadoLabel}
+${inc.asignado_a ? `👤 Técnico asignado: ${inc.asignado_a}\n` : ''}
+── DESCRIPCIÓN DEL PROBLEMA ──────────────────────
 ${inc.descripcion}
-${inc.solucion ? `\nSOLUCIÓN / RESOLUCIÓN:\n${inc.solucion}` : ''}
-═══════════════════════════════════════`;
+${solucionTexto ? `\n── SOLUCIÓN / RESOLUCIÓN ─────────────────────────\n${solucionTexto}\n` : ''}──────────────────────────────────────────────────
+
+Atentamente,
+Equipo técnico`;
+
+  const text = `Asunto: ${asunto}\n\n${cuerpo}`;
 
   if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(text).then(() => toast('Resumen copiado al portapapeles', 'ok'))
+    navigator.clipboard.writeText(text).then(() => toast('Mensaje copiado al portapapeles', 'ok'))
       .catch(() => copyFallback(text));
   } else {
     copyFallback(text);
@@ -1590,7 +1653,7 @@ function copyFallback(text) {
   ta.select();
   try {
     document.execCommand('copy');
-    toast('Resumen copiado al portapapeles', 'ok');
+    toast('Mensaje copiado al portapapeles', 'ok');
   } catch {
     toast('No se pudo copiar automáticamente', 'err');
   }
@@ -1782,9 +1845,10 @@ function openModal(title, body, buttons = []) {
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = body;
   const footer = document.getElementById('modal-footer');
-  footer.innerHTML = buttons.map(b =>
-    `<button class="btn ${b.cls}" onclick="${b.fn}">${b.label}</button>`
-  ).join('');
+  footer.innerHTML = buttons.map(b => {
+    const call = b.fn.includes('(') ? b.fn : b.fn + '()';
+    return `<button class="btn ${b.cls}" onclick="${call}">${b.label}</button>`;
+  }).join('');
   document.getElementById('modal').style.display = 'flex';
 }
 
