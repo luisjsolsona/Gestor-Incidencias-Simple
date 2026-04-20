@@ -55,9 +55,16 @@ db.exec(`
   );
 `);
 
+// Custom SQLite function: normalize text (strip accents, lowercase) for accent-insensitive search
+function normalizeStr(s) {
+  if (!s) return '';
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+db.function('norm', normalizeStr);
+
 // Migrations
 try { db.exec("ALTER TABLE incidencias ADD COLUMN attachments TEXT DEFAULT '[]'"); } catch {}
-try { db.exec("UPDATE users SET role = 'tecnico' WHERE role = 'tecnico'"); } catch {}
+try { db.exec("UPDATE users SET role = 'tecnico' WHERE role = 'cofotap'"); } catch {}
 
 // Seed default data
 const adminExists = db.prepare("SELECT id FROM users WHERE role = 'admin'").get();
@@ -179,8 +186,8 @@ app.get('/api/public/incidencias', (req, res) => {
   let query = "SELECT id, codigo, descripcion, ubicacion, ubicacion_custom, fecha_actualizacion, solucion, prioridad FROM incidencias WHERE estado = 'cerrada'";
   const params = [];
   if (search) {
-    query += ' AND (codigo LIKE ? OR descripcion LIKE ? OR ubicacion LIKE ? OR solucion LIKE ?)';
-    const s = `%${search}%`;
+    query += ' AND (norm(codigo) LIKE ? OR norm(descripcion) LIKE ? OR norm(ubicacion) LIKE ? OR norm(solucion) LIKE ?)';
+    const s = `%${normalizeStr(search)}%`;
     params.push(s, s, s, s);
   }
   query += ' ORDER BY fecha_actualizacion DESC LIMIT 200';
@@ -195,11 +202,11 @@ app.get('/api/incidencias', authMiddleware(['admin', 'tecnico', 'usuario']), (re
   const params = [];
   if (estado) { query += ' AND estado = ?'; params.push(estado); }
   if (search) {
-    query += ' AND (codigo LIKE ? OR nombre LIKE ? OR descripcion LIKE ? OR ubicacion LIKE ?)';
-    const s = `%${search}%`;
+    query += ' AND (norm(codigo) LIKE ? OR norm(nombre) LIKE ? OR norm(descripcion) LIKE ? OR norm(ubicacion) LIKE ?)';
+    const s = `%${normalizeStr(search)}%`;
     params.push(s, s, s, s);
   }
-  const total = db.prepare(`SELECT COUNT(*) as c FROM incidencias WHERE 1=1${estado ? ' AND estado = ?' : ''}${search ? ' AND (codigo LIKE ? OR nombre LIKE ? OR descripcion LIKE ? OR ubicacion LIKE ?)' : ''}`).get(...params).c;
+  const total = db.prepare(`SELECT COUNT(*) as c FROM incidencias WHERE 1=1${estado ? ' AND estado = ?' : ''}${search ? ' AND (norm(codigo) LIKE ? OR norm(nombre) LIKE ? OR norm(descripcion) LIKE ? OR norm(ubicacion) LIKE ?)' : ''}`).get(...params).c;
   query += ' ORDER BY fecha_creacion DESC LIMIT ? OFFSET ?';
   params.push(Number(limit), (Number(page) - 1) * Number(limit));
   const rows = db.prepare(query).all(...params);
