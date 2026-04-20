@@ -104,7 +104,7 @@
     font-weight: 700;
   }
   .role-admin { background: rgba(124,58,237,0.1); color: var(--purple); border: 1px solid rgba(124,58,237,0.2); }
-  .role-cofotap { background: rgba(8,145,178,0.1); color: var(--cyan); border: 1px solid rgba(8,145,178,0.2); }
+  .role-tecnico { background: rgba(8,145,178,0.1); color: var(--cyan); border: 1px solid rgba(8,145,178,0.2); }
   .role-usuario { background: rgba(37,99,235,0.1); color: var(--accent); border: 1px solid rgba(37,99,235,0.2); }
 
   /* NAV */
@@ -654,7 +654,7 @@
       </div>
       <div class="form-group" style="margin-bottom:16px">
         <label>Usuario</label>
-        <input type="text" id="login-user" placeholder="admin / cofotap / usuario" autocomplete="username">
+        <input type="text" id="login-user" placeholder="admin / tecnico / usuario" autocomplete="username">
       </div>
       <div class="form-group" style="margin-bottom:24px">
         <label>Contraseña</label>
@@ -880,7 +880,7 @@
     <!-- AJUSTES (admin only) -->
     <div id="page-ajustes" class="page">
       <div class="section-title">Ajustes del sistema</div>
-      <div class="section-sub">Gestión de ubicaciones y usuarios</div>
+      <div class="section-sub">Gestión de ubicaciones, usuarios y copias de seguridad</div>
 
       <div class="card">
         <div class="card-header">
@@ -896,6 +896,31 @@
           <button class="btn btn-primary btn-sm" onclick="showAddUser()">+ Añadir usuario</button>
         </div>
         <div id="users-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">💾 Exportar / Importar datos</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:20px">
+          <div>
+            <div class="detail-label" style="margin-bottom:10px">Exportar</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-ghost btn-sm" onclick="exportarDatos('all')">⬇ Todo (backup completo)</button>
+              <button class="btn btn-ghost btn-sm" onclick="exportarDatos('incidencias')">⬇ Incidencias</button>
+              <button class="btn btn-ghost btn-sm" onclick="exportarDatos('ubicaciones')">⬇ Ubicaciones</button>
+              <button class="btn btn-ghost btn-sm" onclick="exportarDatos('usuarios')">⬇ Usuarios</button>
+            </div>
+          </div>
+          <div>
+            <div class="detail-label" style="margin-bottom:10px">Importar</div>
+            <p style="font-size:13px;color:var(--text3);margin:0 0 10px">Selecciona un archivo JSON exportado previamente. Las incidencias y ubicaciones duplicadas (mismo código/nombre) serán ignoradas.</p>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <input type="file" id="import-file" accept=".json" onchange="importarDatos(event)" style="font-size:13px">
+            </div>
+            <div id="import-result" style="margin-top:10px;font-size:13px;color:var(--text3)"></div>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -929,6 +954,7 @@ let state = {
   currentPage: 'public',
   incidencias: [],
   locations: [],
+  users: [],
   searchTimeout: null,
   currentPage_num: 1,
   totalPages: 1,
@@ -997,8 +1023,8 @@ function showApp() {
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = state.role === 'admin' ? '' : 'none';
   });
-  document.querySelectorAll('.cofotap-only').forEach(el => {
-    el.style.display = (state.role === 'admin' || state.role === 'cofotap') ? '' : 'none';
+  document.querySelectorAll('.tecnico-only').forEach(el => {
+    el.style.display = (state.role === 'admin' || state.role === 'tecnico') ? '' : 'none';
   });
 
   switchPage('incidencias', document.querySelector('[data-page=incidencias]'));
@@ -1006,6 +1032,8 @@ function showApp() {
   loadIncidencias();
   if (state.role === 'admin') {
     loadLocationsAdmin();
+  }
+  if (state.role === 'admin' || state.role === 'tecnico') {
     loadUsers();
   }
 }
@@ -1147,14 +1175,16 @@ async function loadResolved(search = '') {
     }
     container.innerHTML = rows.map(inc => {
       const ubi = inc.ubicacion + (inc.ubicacion_custom ? ` — ${inc.ubicacion_custom}` : '');
-      const sol = inc.solucion.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').substring(0, 300);
+      const rawSol = inc.solucion || '';
+      const sol = rawSol.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').trim().substring(0, 300);
+      const fecha = inc.fecha_actualizacion ? new Date(inc.fecha_actualizacion).toLocaleDateString('es-ES') : '';
       return `<div style="border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:6px">
           <span style="font-family:var(--font-mono);font-size:12px;color:var(--accent);font-weight:600">${escHtml(inc.codigo)}</span>
-          <span style="font-size:12px;color:var(--text3)">📍 ${escHtml(ubi)}</span>
+          <span style="font-size:12px;color:var(--text3)">📍 ${escHtml(ubi)}${fecha ? ` · ${fecha}` : ''}</span>
         </div>
         <div style="font-size:14px;color:var(--text2);margin-bottom:8px"><strong>Problema:</strong> ${escHtml(inc.descripcion).substring(0,200)}${inc.descripcion.length>200?'…':''}</div>
-        <div style="font-size:14px;background:rgba(22,163,74,0.06);border:1px solid rgba(22,163,74,0.2);border-radius:6px;padding:10px"><strong style="color:#16a34a">✅ Solución:</strong> ${escHtml(sol)}${sol.length>=300?'…':''}</div>
+        ${sol ? `<div style="font-size:14px;background:rgba(22,163,74,0.06);border:1px solid rgba(22,163,74,0.2);border-radius:6px;padding:10px"><strong style="color:#16a34a">✅ Solución:</strong> ${escHtml(sol)}${rawSol.length>300?'…':''}</div>` : '<div style="font-size:13px;color:var(--text3);font-style:italic">Sin solución registrada</div>'}
       </div>`;
     }).join('');
   } catch {
@@ -1454,7 +1484,7 @@ async function openIncidencia(id) {
 }
 
 function renderIncidenciaModal(inc) {
-  const canEdit = state.role === 'admin' || state.role === 'cofotap';
+  const canEdit = state.role === 'admin' || state.role === 'tecnico';
   const historial = JSON.parse(inc.historial || '[]');
 
   const ubicacionFull = inc.ubicacion + (inc.ubicacion_custom ? ` — ${inc.ubicacion_custom}` : '');
@@ -1493,7 +1523,14 @@ function renderIncidenciaModal(inc) {
 
     <div style="margin-bottom:20px">
       <div class="detail-label" style="margin-bottom:6px">Asignar a</div>
-      <input id="inc-asignado" type="text" value="${escHtml(inc.asignado_a || '')}" placeholder="Nombre del técnico responsable">
+      <select id="inc-asignado">
+        <option value="">— Sin asignar —</option>
+        ${state.users.filter(u => u.role === 'admin' || u.role === 'tecnico').map(u =>
+          `<option value="${escHtml(u.username)}" ${inc.asignado_a === u.username ? 'selected' : ''}>${escHtml(u.username)} (${u.role})</option>`
+        ).join('')}
+        ${inc.asignado_a && !state.users.some(u => u.username === inc.asignado_a)
+          ? `<option value="${escHtml(inc.asignado_a)}" selected>${escHtml(inc.asignado_a)}</option>` : ''}
+      </select>
     </div>
 
     <div style="margin-bottom:20px">
@@ -1743,6 +1780,7 @@ async function loadUsers() {
   const r = await apiFetch('/api/users');
   if (!r.ok) return;
   const users = await r.json();
+  state.users = users;
   const el = document.getElementById('users-list');
   if (!el) return;
   el.innerHTML = `<div class="table-wrap"><table>
@@ -1775,7 +1813,7 @@ function showAddUser() {
         <label>Rol</label>
         <select id="nu-role">
           <option value="usuario">Usuario</option>
-          <option value="cofotap">Cofotap</option>
+          <option value="tecnico">Técnico</option>
           <option value="admin">Administrador</option>
         </select>
       </div>
@@ -1809,7 +1847,7 @@ function editUser(id, currentRole) {
         <label>Rol</label>
         <select id="eu-role">
           <option value="usuario" ${currentRole === 'usuario' ? 'selected' : ''}>Usuario</option>
-          <option value="cofotap" ${currentRole === 'cofotap' ? 'selected' : ''}>Cofotap</option>
+          <option value="tecnico" ${currentRole === 'tecnico' ? 'selected' : ''}>Técnico</option>
           <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Administrador</option>
         </select>
       </div>
@@ -1836,6 +1874,51 @@ async function deleteUser(id) {
   if (!r.ok) return toast(data.error || 'Error', 'err');
   toast('Usuario eliminado', 'ok');
   loadUsers();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EXPORT / IMPORT
+// ═══════════════════════════════════════════════════════════════════
+async function exportarDatos(type) {
+  try {
+    const r = await apiFetch(`/api/export?type=${type}`);
+    if (!r.ok) return toast('Error al exportar', 'err');
+    const blob = await r.blob();
+    const cd = r.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : `gestor-backup-${type}.json`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+    toast('Exportación descargada', 'ok');
+  } catch { toast('Error al exportar', 'err'); }
+}
+
+async function importarDatos(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const result = document.getElementById('import-result');
+  result.textContent = 'Procesando...';
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const payload = {};
+    if (data.incidencias) payload.incidencias = data.incidencias;
+    if (data.ubicaciones) payload.ubicaciones = data.ubicaciones;
+    const r = await apiFetch('/api/import', { method: 'POST', body: JSON.stringify(payload) });
+    const res = await r.json();
+    if (!r.ok) { result.textContent = 'Error: ' + (res.error || 'desconocido'); return; }
+    const { imported } = res;
+    result.textContent = `✅ Importado: ${imported.incidencias} incidencias, ${imported.ubicaciones} ubicaciones.${imported.errors?.length ? ' Errores: ' + imported.errors.slice(0,3).join('; ') : ''}`;
+    result.style.color = 'var(--green)';
+    loadLocationsAdmin(); loadLocations(); loadIncidencias(); loadStats();
+    toast('Importación completada', 'ok');
+  } catch (e) {
+    result.textContent = 'Error al procesar el archivo: ' + e.message;
+    result.style.color = 'var(--red)';
+  }
+  event.target.value = '';
 }
 
 // ═══════════════════════════════════════════════════════════════════

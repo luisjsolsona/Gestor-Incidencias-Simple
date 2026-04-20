@@ -67,7 +67,7 @@ docker compose up -d --build
 | Usuario   | Contraseña   | Rol      |
 |-----------|--------------|----------|
 | `admin`   | `admin123`   | admin    |
-| `cofotap` | `cofotap123` | cofotap  |
+| `tecnico` | `cofotap123` | tecnico  |
 
 > ⚠️ Cambia las contraseñas en producción desde el panel **Ajustes → Usuarios**.
 
@@ -82,12 +82,13 @@ environment:
 
 ## Roles / Permisos
 
-| Acción | Público | Usuario | Cofotap | Admin |
+| Acción | Público | Usuario | Técnico | Admin |
 |--------|:-------:|:-------:|:-------:|:-----:|
 | Crear incidencia | ✅ | ✅ | ✅ | ✅ |
 | Ver lista de incidencias | ❌ | ✅ | ✅ | ✅ |
 | Cambiar estado | ❌ | ❌ | ✅ | ✅ |
 | Añadir solución y asignar técnico | ❌ | ❌ | ✅ | ✅ |
+| Exportar / Importar datos | ❌ | ❌ | ❌ | ✅ |
 | Gestionar ubicaciones | ❌ | ❌ | ❌ | ✅ |
 | Gestionar usuarios | ❌ | ❌ | ❌ | ✅ |
 

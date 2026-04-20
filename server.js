@@ -57,6 +57,7 @@ db.exec(`
 
 // Migrations
 try { db.exec("ALTER TABLE incidencias ADD COLUMN attachments TEXT DEFAULT '[]'"); } catch {}
+try { db.exec("UPDATE users SET role = 'tecnico' WHERE role = 'tecnico'"); } catch {}
 
 // Seed default data
 const adminExists = db.prepare("SELECT id FROM users WHERE role = 'admin'").get();
@@ -64,7 +65,7 @@ if (!adminExists) {
   const hash = bcrypt.hashSync('admin123', 10);
   db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run('admin', hash, 'admin');
   const hashCofo = bcrypt.hashSync('cofotap123', 10);
-  db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run('cofotap', hashCofo, 'cofotap');
+  db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run('tecnico', hashCofo, 'tecnico');
 }
 
 const locCount = db.prepare('SELECT COUNT(*) as c FROM locations').get();
@@ -175,20 +176,20 @@ app.post('/api/incidencias', (req, res) => {
 // ── INCIDENCIAS (PUBLIC RESOLVED) ────────────────────────────────────────────
 app.get('/api/public/incidencias', (req, res) => {
   const { search } = req.query;
-  let query = "SELECT id, codigo, descripcion, ubicacion, ubicacion_custom, fecha_creacion, solucion, prioridad FROM incidencias WHERE estado = 'cerrada' AND solucion IS NOT NULL AND solucion != ''";
+  let query = "SELECT id, codigo, descripcion, ubicacion, ubicacion_custom, fecha_actualizacion, solucion, prioridad FROM incidencias WHERE estado = 'cerrada'";
   const params = [];
   if (search) {
     query += ' AND (codigo LIKE ? OR descripcion LIKE ? OR ubicacion LIKE ? OR solucion LIKE ?)';
     const s = `%${search}%`;
     params.push(s, s, s, s);
   }
-  query += ' ORDER BY fecha_actualizacion DESC LIMIT 50';
+  query += ' ORDER BY fecha_actualizacion DESC LIMIT 200';
   const rows = db.prepare(query).all(...params);
   res.json(rows);
 });
 
 // ── INCIDENCIAS (AUTH REQUIRED) ──────────────────────────────────────────────
-app.get('/api/incidencias', authMiddleware(['admin', 'cofotap', 'usuario']), (req, res) => {
+app.get('/api/incidencias', authMiddleware(['admin', 'tecnico', 'usuario']), (req, res) => {
   const { estado, search, page = 1, limit = 20 } = req.query;
   let query = 'SELECT * FROM incidencias WHERE 1=1';
   const params = [];
@@ -205,13 +206,13 @@ app.get('/api/incidencias', authMiddleware(['admin', 'cofotap', 'usuario']), (re
   res.json({ data: rows, total, page: Number(page), pages: Math.ceil(total / limit) });
 });
 
-app.get('/api/incidencias/:id', authMiddleware(['admin', 'cofotap', 'usuario']), (req, res) => {
+app.get('/api/incidencias/:id', authMiddleware(['admin', 'tecnico', 'usuario']), (req, res) => {
   const row = db.prepare('SELECT * FROM incidencias WHERE id = ? OR codigo = ?').get(req.params.id, req.params.id);
   if (!row) return res.status(404).json({ error: 'No encontrada' });
   res.json(row);
 });
 
-app.put('/api/incidencias/:id', authMiddleware(['admin', 'cofotap']), (req, res) => {
+app.put('/api/incidencias/:id', authMiddleware(['admin', 'tecnico']), (req, res) => {
   const inc = db.prepare('SELECT * FROM incidencias WHERE id = ?').get(req.params.id);
   if (!inc) return res.status(404).json({ error: 'No encontrada' });
 
@@ -266,15 +267,15 @@ app.delete('/api/incidencias/:id', authMiddleware(['admin']), (req, res) => {
 });
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
-app.get('/api/stats', authMiddleware(['admin', 'cofotap', 'usuario']), (req, res) => {
+app.get('/api/stats', authMiddleware(['admin', 'tecnico', 'usuario']), (req, res) => {
   const estados = db.prepare('SELECT estado, COUNT(*) as c FROM incidencias GROUP BY estado').all();
   const total = db.prepare('SELECT COUNT(*) as c FROM incidencias').get().c;
   const ultimasAbiertas = db.prepare('SELECT * FROM incidencias WHERE estado = "abierta" ORDER BY fecha_creacion DESC LIMIT 5').all();
   res.json({ estados, total, ultimasAbiertas });
 });
 
-// ── USERS (admin only) ────────────────────────────────────────────────────────
-app.get('/api/users', authMiddleware(['admin']), (req, res) => {
+// ── USERS ─────────────────────────────────────────────────────────────────────
+app.get('/api/users', authMiddleware(['admin', 'tecnico']), (req, res) => {
   const users = db.prepare('SELECT id, username, role, created_at FROM users').all();
   res.json(users);
 });
@@ -310,6 +311,60 @@ app.delete('/api/users/:id', authMiddleware(['admin']), (req, res) => {
   }
   db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
+});
+
+// ── EXPORT / IMPORT ───────────────────────────────────────────────────────────
+app.get('/api/export', authMiddleware(['admin']), (req, res) => {
+  const { type = 'all' } = req.query;
+  const result = { exportado_el: new Date().toISOString(), version: 1 };
+  if (type === 'all' || type === 'incidencias') {
+    result.incidencias = db.prepare('SELECT * FROM incidencias').all();
+  }
+  if (type === 'all' || type === 'ubicaciones') {
+    result.ubicaciones = db.prepare('SELECT * FROM locations').all();
+  }
+  if (type === 'all' || type === 'usuarios') {
+    result.usuarios = db.prepare('SELECT id, username, role, created_at FROM users').all();
+  }
+  const filename = `gestor-backup-${new Date().toISOString().slice(0, 10)}${type !== 'all' ? '-' + type : ''}.json`;
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.json(result);
+});
+
+app.post('/api/import', authMiddleware(['admin']), (req, res) => {
+  const { incidencias, ubicaciones } = req.body;
+  const imported = { incidencias: 0, ubicaciones: 0, errors: [] };
+
+  if (Array.isArray(incidencias)) {
+    const ins = db.prepare(`INSERT OR IGNORE INTO incidencias
+      (codigo, nombre, email, descripcion, ubicacion, ubicacion_custom, fecha_creacion, fecha_actualizacion, estado, prioridad, solucion, asignado_a, historial, attachments)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    for (const inc of incidencias) {
+      try {
+        const r = ins.run(
+          inc.codigo, inc.nombre, inc.email, inc.descripcion, inc.ubicacion,
+          inc.ubicacion_custom || null, inc.fecha_creacion, inc.fecha_actualizacion,
+          inc.estado || 'abierta', inc.prioridad || 'normal',
+          inc.solucion || null, inc.asignado_a || null,
+          inc.historial || '[]', inc.attachments || '[]'
+        );
+        if (r.changes) imported.incidencias++;
+      } catch (e) { imported.errors.push(`Inc ${inc.codigo}: ${e.message}`); }
+    }
+  }
+
+  if (Array.isArray(ubicaciones)) {
+    const ins = db.prepare('INSERT OR IGNORE INTO locations (name, active, sort_order) VALUES (?, ?, ?)');
+    for (const loc of ubicaciones) {
+      try {
+        const r = ins.run(loc.name, loc.active ?? 1, loc.sort_order ?? 0);
+        if (r.changes) imported.ubicaciones++;
+      } catch (e) { imported.errors.push(`Loc ${loc.name}: ${e.message}`); }
+    }
+  }
+
+  res.json({ ok: true, imported });
 });
 
 // SPA fallback
