@@ -197,19 +197,25 @@ app.get('/api/public/incidencias', (req, res) => {
 
 // ── INCIDENCIAS (AUTH REQUIRED) ──────────────────────────────────────────────
 app.get('/api/incidencias', authMiddleware(['admin', 'tecnico', 'usuario']), (req, res) => {
-  const { estado, search, page = 1, limit = 20 } = req.query;
-  let query = 'SELECT * FROM incidencias WHERE 1=1';
+  const { estado, search, asignado, page = 1, limit = 20, sortBy = '', sortDir = 'desc' } = req.query;
+  const allowedSort = { codigo: 'codigo', descripcion: 'descripcion', ubicacion: 'ubicacion', estado: 'estado', prioridad: 'prioridad', fecha: 'fecha_creacion' };
+  const sortCol = allowedSort[sortBy] || 'fecha_creacion';
+  const sortOrder = sortDir === 'asc' ? 'ASC' : 'DESC';
+
+  let where = 'WHERE 1=1';
   const params = [];
-  if (estado) { query += ' AND estado = ?'; params.push(estado); }
+  if (estado) { where += ' AND estado = ?'; params.push(estado); }
+  if (asignado === '__none__') { where += ' AND (asignado_a IS NULL OR asignado_a = \'\')'; }
+  else if (asignado) { where += ' AND asignado_a = ?'; params.push(asignado); }
   if (search) {
-    query += ' AND (norm(codigo) LIKE ? OR norm(nombre) LIKE ? OR norm(descripcion) LIKE ? OR norm(ubicacion) LIKE ?)';
+    where += ' AND (norm(codigo) LIKE ? OR norm(nombre) LIKE ? OR norm(descripcion) LIKE ? OR norm(ubicacion) LIKE ?)';
     const s = `%${normalizeStr(search)}%`;
     params.push(s, s, s, s);
   }
-  const total = db.prepare(`SELECT COUNT(*) as c FROM incidencias WHERE 1=1${estado ? ' AND estado = ?' : ''}${search ? ' AND (norm(codigo) LIKE ? OR norm(nombre) LIKE ? OR norm(descripcion) LIKE ? OR norm(ubicacion) LIKE ?)' : ''}`).get(...params).c;
-  query += ' ORDER BY fecha_creacion DESC LIMIT ? OFFSET ?';
-  params.push(Number(limit), (Number(page) - 1) * Number(limit));
-  const rows = db.prepare(query).all(...params);
+
+  const total = db.prepare(`SELECT COUNT(*) as c FROM incidencias ${where}`).get(...params).c;
+  const rows = db.prepare(`SELECT * FROM incidencias ${where} ORDER BY ${sortCol} ${sortOrder} LIMIT ? OFFSET ?`)
+    .all(...params, Number(limit), (Number(page) - 1) * Number(limit));
   res.json({ data: rows, total, page: Number(page), pages: Math.ceil(total / limit) });
 });
 

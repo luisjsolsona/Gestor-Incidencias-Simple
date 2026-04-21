@@ -813,13 +813,17 @@
       </div>
       <div class="search-bar">
         <input type="text" id="search-input" placeholder="🔍 Buscar por código, nombre, descripción..." oninput="debounceSearch()">
-        <select id="filter-estado" onchange="loadIncidencias()">
+        <select id="filter-estado" onchange="state.currentPage_num=1;loadIncidencias()">
           <option value="">Todos los estados</option>
           <option value="abierta">Abiertas</option>
           <option value="en_proceso">En proceso</option>
           <option value="cerrada">Cerradas</option>
           <option value="reabierta">Reabiertas</option>
           <option value="cancelada">Canceladas</option>
+        </select>
+        <select id="filter-asignado" onchange="state.currentPage_num=1;loadIncidencias()" style="min-width:160px">
+          <option value="">Todos los asignados</option>
+          <option value="__none__">— Sin asignar —</option>
         </select>
       </div>
       <div class="filter-chips" id="filter-chips">
@@ -848,15 +852,15 @@
       <div class="card" style="padding:0">
         <div class="table-wrap">
           <table>
-            <thead>
+            <thead id="tabla-thead">
               <tr>
                 <th style="width:40px"><input type="checkbox" class="row-check" id="chk-all" onchange="toggleSelectAll(this)"></th>
-                <th style="width:130px">Código</th>
-                <th>Descripción</th>
-                <th style="width:150px">Ubicación</th>
-                <th style="width:120px">Estado</th>
-                <th style="width:80px">Prioridad</th>
-                <th style="width:90px">Fecha</th>
+                <th style="width:130px;cursor:pointer;user-select:none" onclick="sortBy('codigo')"><span id="sort-codigo">Código</span></th>
+                <th style="cursor:pointer;user-select:none" onclick="sortBy('descripcion')"><span id="sort-descripcion">Descripción</span></th>
+                <th style="width:150px;cursor:pointer;user-select:none" onclick="sortBy('ubicacion')"><span id="sort-ubicacion">Ubicación</span></th>
+                <th style="width:120px;cursor:pointer;user-select:none" onclick="sortBy('estado')"><span id="sort-estado">Estado</span></th>
+                <th style="width:80px;cursor:pointer;user-select:none" onclick="sortBy('prioridad')"><span id="sort-prioridad">Prioridad</span></th>
+                <th style="width:90px;cursor:pointer;user-select:none" onclick="sortBy('fecha')"><span id="sort-fecha">Fecha ▾</span></th>
               </tr>
             </thead>
             <tbody id="tabla-incidencias">
@@ -959,7 +963,10 @@ let state = {
   currentPage_num: 1,
   totalPages: 1,
   filterEstado: '',
-  searchQuery: ''
+  searchQuery: '',
+  sortBy: 'fecha',
+  sortDir: 'desc',
+  filterAsignado: ''
 };
 
 const API = '';
@@ -1157,6 +1164,8 @@ function checkUbicacionCustom(suffix) {
 // PUBLIC RESOLVED SEARCH
 // ═══════════════════════════════════════════════════════════════════
 let _resolvedDebounce = null;
+let _resolvedRows = [];
+
 function searchResolved(q) {
   clearTimeout(_resolvedDebounce);
   _resolvedDebounce = setTimeout(() => loadResolved(q), 300);
@@ -1169,27 +1178,58 @@ async function loadResolved(search = '') {
     const url = API + '/api/public/incidencias' + (search ? `?search=${encodeURIComponent(search)}` : '');
     const r = await fetch(url);
     const rows = await r.json();
+    _resolvedRows = rows;
     if (!rows.length) {
       container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px">No se encontraron incidencias resueltas.</div>';
       return;
     }
-    container.innerHTML = rows.map(inc => {
+    container.innerHTML = rows.map((inc, idx) => {
       const ubi = inc.ubicacion + (inc.ubicacion_custom ? ` — ${inc.ubicacion_custom}` : '');
       const rawSol = inc.solucion || '';
-      const sol = rawSol.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').trim().substring(0, 300);
+      const sol = rawSol.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').trim();
+      const preview = sol.substring(0, 160);
       const fecha = inc.fecha_actualizacion ? new Date(inc.fecha_actualizacion).toLocaleDateString('es-ES') : '';
-      return `<div style="border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+      return `<div onclick="showResolvedDetail(${idx})" style="border:1px solid var(--border);border-radius:8px;padding:16px 18px;margin-bottom:10px;cursor:pointer;transition:border-color .15s,box-shadow .15s" onmouseenter="this.style.borderColor='var(--accent)';this.style.boxShadow='0 2px 8px rgba(37,99,235,0.1)'" onmouseleave="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:8px">
           <span style="font-family:var(--font-mono);font-size:12px;color:var(--accent);font-weight:600">${escHtml(inc.codigo)}</span>
           <span style="font-size:12px;color:var(--text3)">📍 ${escHtml(ubi)}${fecha ? ` · ${fecha}` : ''}</span>
         </div>
-        <div style="font-size:14px;color:var(--text2);margin-bottom:8px"><strong>Problema:</strong> ${escHtml(inc.descripcion).substring(0,200)}${inc.descripcion.length>200?'…':''}</div>
-        ${sol ? `<div style="font-size:14px;background:rgba(22,163,74,0.06);border:1px solid rgba(22,163,74,0.2);border-radius:6px;padding:10px"><strong style="color:#16a34a">✅ Solución:</strong> ${escHtml(sol)}${rawSol.length>300?'…':''}</div>` : '<div style="font-size:13px;color:var(--text3);font-style:italic">Sin solución registrada</div>'}
+        <div style="font-size:16px;font-weight:600;color:var(--text1);margin-bottom:8px;line-height:1.5">${escHtml(inc.descripcion).substring(0,180)}${inc.descripcion.length>180?'…':''}</div>
+        ${sol ? `<div style="font-size:13px;color:var(--text3)">✅ <em>${escHtml(preview)}${sol.length>160?'…':''}</em> <span style="color:var(--accent);font-size:12px">Ver más →</span></div>` : '<div style="font-size:13px;color:var(--text3);font-style:italic">Sin solución registrada · Haz clic para ver detalles</div>'}
       </div>`;
     }).join('');
   } catch {
     container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px">Error al cargar. Inténtalo de nuevo.</div>';
   }
+}
+
+function showResolvedDetail(idx) {
+  const inc = _resolvedRows[idx];
+  if (!inc) return;
+  const ubi = inc.ubicacion + (inc.ubicacion_custom ? ` — ${inc.ubicacion_custom}` : '');
+  const fecha = inc.fecha_actualizacion ? new Date(inc.fecha_actualizacion).toLocaleDateString('es-ES', { year:'numeric', month:'long', day:'numeric' }) : '';
+  const rawSol = inc.solucion || '';
+  const solTexto = rawSol.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').trim();
+
+  const body = `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+      <span style="font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--accent)">${escHtml(inc.codigo)}</span>
+      <span style="font-size:12px;color:var(--text3)">📍 ${escHtml(ubi)}</span>
+      ${fecha ? `<span style="font-size:12px;color:var(--text3)">· ${fecha}</span>` : ''}
+    </div>
+    <div style="margin-bottom:20px">
+      <div class="detail-label">Descripción del problema</div>
+      <div style="margin-top:8px;padding:14px;background:var(--bg3);border-radius:6px;font-size:16px;line-height:1.7;font-weight:500">${escHtml(inc.descripcion)}</div>
+    </div>
+    ${rawSol ? `
+    <div>
+      <div class="detail-label">Solución / Resolución</div>
+      <div style="margin-top:8px;padding:14px;background:rgba(22,163,74,0.05);border:1px solid rgba(22,163,74,0.2);border-radius:6px;font-size:15px;line-height:1.7">${rawSol.includes('<') ? rawSol : escHtml(rawSol)}</div>
+    </div>` : '<div style="color:var(--text3);font-style:italic">Sin solución registrada</div>'}`;
+
+  openModal(`Incidencia resuelta: ${inc.codigo}`, body, [
+    { label: '✕ Cerrar', cls: 'btn-ghost', fn: 'closeModal' }
+  ]);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1416,13 +1456,56 @@ function setChip(el, estado) {
   loadIncidencias();
 }
 
+function sortBy(col) {
+  if (state.sortBy === col) {
+    state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.sortBy = col;
+    state.sortDir = 'asc';
+  }
+  state.currentPage_num = 1;
+  updateSortHeaders();
+  loadIncidencias();
+}
+
+function updateSortHeaders() {
+  ['codigo','descripcion','ubicacion','estado','prioridad','fecha'].forEach(col => {
+    const el = document.getElementById('sort-' + col);
+    if (!el) return;
+    const labels = { codigo: 'Código', descripcion: 'Descripción', ubicacion: 'Ubicación', estado: 'Estado', prioridad: 'Prioridad', fecha: 'Fecha' };
+    if (state.sortBy === col) {
+      el.textContent = labels[col] + (state.sortDir === 'asc' ? ' ▲' : ' ▾');
+    } else {
+      el.textContent = labels[col];
+    }
+  });
+}
+
+function populateAsignadoFilter(rows) {
+  const sel = document.getElementById('filter-asignado');
+  if (!sel) return;
+  const current = sel.value;
+  const names = new Set(rows.filter(r => r.asignado_a).map(r => r.asignado_a));
+  state.users.filter(u => u.role === 'admin' || u.role === 'tecnico').forEach(u => names.add(u.username));
+  const fixed = ['', '__none__'];
+  Array.from(sel.options).filter(o => !fixed.includes(o.value)).forEach(o => o.remove());
+  names.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  sel.value = current;
+}
+
 async function loadIncidencias() {
   const search = document.getElementById('search-input')?.value || '';
   const estado = document.getElementById('filter-estado')?.value || '';
+  const asignado = document.getElementById('filter-asignado')?.value || '';
   const page = state.currentPage_num;
-  const params = new URLSearchParams({ page, limit: 20 });
+  const params = new URLSearchParams({ page, limit: 20, sortBy: state.sortBy, sortDir: state.sortDir });
   if (search) params.set('search', search);
   if (estado) params.set('estado', estado);
+  if (asignado) params.set('asignado', asignado);
   try {
     const r = await apiFetch('/api/incidencias?' + params);
     if (!r.ok) return;
@@ -1436,6 +1519,7 @@ async function loadIncidencias() {
 function renderIncidencias(data) {
   const tbody = document.getElementById('tabla-incidencias');
   if (!tbody) return;
+  populateAsignadoFilter(data.data);
   if (!data.data.length) {
     tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📂</div><p>No hay incidencias</p></div></td></tr>';
     document.getElementById('pagination').innerHTML = '';
@@ -1612,13 +1696,18 @@ function renderIncidenciaModal(inc) {
 }
 
 async function updateEstado(id, estado) {
+  const solucion = window._quillEditor ? window._quillEditor.root.innerHTML : undefined;
+  const asignado_a = document.getElementById('inc-asignado')?.value;
+  const existing = JSON.parse(window._currentInc?.attachments || '[]')
+    .filter((_, i) => !window._removedAttachments?.has(i));
+  const allAttachments = [...existing, ...(window._pendingAttachments || [])];
   try {
     const r = await apiFetch('/api/incidencias/' + id, {
       method: 'PUT',
-      body: JSON.stringify({ estado })
+      body: JSON.stringify({ estado, solucion, asignado_a, attachments: allAttachments })
     });
     if (!r.ok) return toast('Error al actualizar', 'err');
-    toast('Estado actualizado: ' + estadoLabel(estado), 'ok');
+    toast('Guardado: ' + estadoLabel(estado), 'ok');
     closeModal();
     loadIncidencias(); loadStats();
   } catch { toast('Error de conexión', 'err'); }
