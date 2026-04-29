@@ -2055,7 +2055,7 @@ async function fetchTodasIncidencias() {
 function htmlToPlain(html) {
   if (!html) return '';
   return html
-    .replace(/<img[^>]*>/gi, '[imagen]')
+    .replace(/<img[^>]*>/gi, 'imagen')
     .replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ')
     .replace(/&lt;/g, '<')
@@ -2076,25 +2076,56 @@ function incToRow(inc) {
   ];
 }
 
+function buildHtmlTable(dataRows) {
+  const esc = s => String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const head = `<tr>${SHEETS_HEADERS.map(h => `<th>${esc(h)}</th>`).join('')}</tr>`;
+  const body = dataRows.map(r => `<tr>${r.map(v => `<td>${esc(v)}</td>`).join('')}</tr>`).join('');
+  return `<table>${head}${body}</table>`;
+}
+
 async function copiarParaSheets() {
   const el = document.getElementById('sheets-result');
   el.textContent = 'Obteniendo datos…';
   try {
     const rows = await fetchTodasIncidencias();
-    const lines = [SHEETS_HEADERS, ...rows.map(incToRow)]
-      .map(r => r.map(escTSV).join('\t')).join('\n');
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(lines);
-    } else {
-      // Fallback para HTTP (sin HTTPS)
-      const ta = document.createElement('textarea');
-      ta.value = lines;
-      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
-      document.body.appendChild(ta);
-      ta.focus(); ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
+    const dataRows = rows.map(incToRow);
+    const htmlTable = buildHtmlTable(dataRows);
+    const tsv = [SHEETS_HEADERS, ...dataRows].map(r => r.map(escTSV).join('\t')).join('\n');
+
+    let ok = false;
+    // Intento 1: Clipboard API con HTML (HTTPS)
+    if (!ok && navigator.clipboard?.write && window.isSecureContext) {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({
+          'text/html':  new Blob([htmlTable], { type: 'text/html' }),
+          'text/plain': new Blob([tsv],       { type: 'text/plain' })
+        })]);
+        ok = true;
+      } catch {}
     }
+    // Intento 2: Clipboard API texto plano (HTTPS)
+    if (!ok && navigator.clipboard?.writeText && window.isSecureContext) {
+      try { await navigator.clipboard.writeText(tsv); ok = true; } catch {}
+    }
+    // Intento 3: contenteditable + execCommand (HTTP)
+    if (!ok) {
+      const div = document.createElement('div');
+      div.contentEditable = 'true';
+      div.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;overflow:hidden';
+      div.innerHTML = htmlTable;
+      document.body.appendChild(div);
+      const range = document.createRange();
+      range.selectNodeContents(div);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      ok = document.execCommand('copy');
+      sel.removeAllRanges();
+      document.body.removeChild(div);
+    }
+
+    if (!ok) throw new Error('No se pudo acceder al portapapeles');
     el.textContent = `✅ ${rows.length} incidencias copiadas. Pega con Ctrl+V en Google Sheets.`;
     el.style.color = 'var(--green)';
     toast('Copiado al portapapeles', 'ok');
