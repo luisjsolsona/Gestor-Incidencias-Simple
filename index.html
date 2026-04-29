@@ -2033,7 +2033,7 @@ function fmtFecha(iso) {
 
 function escTSV(v) {
   if (v == null) return '';
-  return String(v).replace(/\t/g, ' ').replace(/\r?\n/g, ' ');
+  return String(v).replace(/[\t\r\n]/g, ' ');
 }
 
 function escCSV(v) {
@@ -2054,12 +2054,17 @@ async function fetchTodasIncidencias() {
 
 function htmlToPlain(html) {
   if (!html) return '';
-  // Sustituir imágenes base64 antes de parsear (pueden ser enormes)
-  const sin = html.replace(/<img[^>]*src="data:[^"]*"[^>]*>/gi, '[imagen]')
-                  .replace(/<img[^>]*>/gi, '[imagen]');
-  const d = document.createElement('div');
-  d.innerHTML = sin;
-  return (d.textContent || d.innerText || '').trim();
+  return html
+    .replace(/<img[^>]*>/gi, '[imagen]')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/[\r\n]+/g, ' ')
+    .trim();
 }
 
 function incToRow(inc) {
