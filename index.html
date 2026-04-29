@@ -2068,7 +2068,18 @@ async function copiarParaSheets() {
     const rows = await fetchTodasIncidencias();
     const lines = [SHEETS_HEADERS, ...rows.map(incToRow)]
       .map(r => r.map(escTSV).join('\t')).join('\n');
-    await navigator.clipboard.writeText(lines);
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(lines);
+    } else {
+      // Fallback para HTTP (sin HTTPS)
+      const ta = document.createElement('textarea');
+      ta.value = lines;
+      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
     el.textContent = `✅ ${rows.length} incidencias copiadas. Pega con Ctrl+V en Google Sheets.`;
     el.style.color = 'var(--green)';
     toast('Copiado al portapapeles', 'ok');
