@@ -896,6 +896,34 @@
 
       <div class="card">
         <div class="card-header">
+          <div class="card-title">📧 Notificaciones por email</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Cuenta Gmail (remitente)</label>
+              <input id="smtp-user" type="email" placeholder="nombre@gmail.com">
+            </div>
+            <div class="form-group">
+              <label>Contraseña de aplicación <span style="font-size:11px;color:var(--text3)">(Google → Cuenta → Seguridad → Contraseñas de aplicación)</span></label>
+              <input id="smtp-pass" type="password" placeholder="Dejar vacío para no cambiar">
+            </div>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+            <input type="checkbox" id="smtp-notify-new" style="width:16px;height:16px">
+            Notificar nuevas incidencias a admins/técnicos con email configurado
+          </label>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" onclick="saveEmailConfig()">💾 Guardar</button>
+            <input id="test-email-to" type="email" placeholder="email de prueba" style="font-size:13px;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text1);width:200px">
+            <button class="btn btn-ghost btn-sm" onclick="sendTestEmail()">📤 Enviar prueba</button>
+          </div>
+          <div id="email-config-result" style="font-size:13px;color:var(--text3)"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
           <div class="card-title">👥 Usuarios</div>
           <button class="btn btn-primary btn-sm" onclick="showAddUser()">+ Añadir usuario</button>
         </div>
@@ -1051,6 +1079,9 @@ function showApp() {
   }
   if (state.role === 'admin' || state.role === 'tecnico') {
     loadUsers();
+  }
+  if (state.role === 'admin') {
+    loadEmailConfig();
   }
 }
 
@@ -1882,14 +1913,16 @@ async function loadUsers() {
   const el = document.getElementById('users-list');
   if (!el) return;
   el.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>Usuario</th><th>Rol</th><th>Creado</th><th></th></tr></thead>
+    <thead><tr><th>Usuario</th><th>Rol</th><th>Email</th><th>Notif.</th><th>Creado</th><th></th></tr></thead>
     <tbody>${users.map(u => `
       <tr>
         <td style="font-family:var(--font-mono);font-size:13px">${escHtml(u.username)}</td>
         <td><span class="role-tag role-${u.role}">${u.role}</span></td>
+        <td style="font-size:12px;color:var(--text3)">${escHtml(u.email || '—')}</td>
+        <td style="text-align:center">${u.notify_incidents ? '✅' : '—'}</td>
         <td style="font-size:11px;color:var(--text3)">${formatDate(u.created_at)}</td>
         <td class="inline-actions">
-          <button class="btn btn-ghost btn-sm" onclick="editUser(${u.id}, '${escJs(u.role)}')">Editar</button>
+          <button class="btn btn-ghost btn-sm" onclick="editUser(${u.id})">Editar</button>
           <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">🗑️</button>
         </td>
       </tr>`).join('')}
@@ -1915,7 +1948,15 @@ function showAddUser() {
           <option value="admin">Administrador</option>
         </select>
       </div>
-    </div>`, [
+      <div class="form-group">
+        <label>Email <span style="color:var(--text3)">(para notificaciones)</span></label>
+        <input id="nu-email" type="email" placeholder="correo@ejemplo.com">
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;margin-top:4px">
+      <input type="checkbox" id="nu-notify" checked style="width:16px;height:16px">
+      Recibir notificación de nuevas incidencias
+    </label>`, [
     { label: 'Crear usuario', cls: 'btn-primary', fn: 'createUser' },
     { label: 'Cancelar', cls: 'btn-ghost', fn: 'closeModal' }
   ]);
@@ -1925,8 +1966,10 @@ async function createUser() {
   const username = document.getElementById('nu-user').value;
   const password = document.getElementById('nu-pass').value;
   const role = document.getElementById('nu-role').value;
+  const email = document.getElementById('nu-email').value;
+  const notify_incidents = document.getElementById('nu-notify').checked;
   if (!username || !password) return toast('Rellena todos los campos', 'err');
-  const r = await apiFetch('/api/users', { method: 'POST', body: JSON.stringify({ username, password, role }) });
+  const r = await apiFetch('/api/users', { method: 'POST', body: JSON.stringify({ username, password, role, email, notify_incidents }) });
   const data = await r.json();
   if (!r.ok) return toast(data.error || 'Error', 'err');
   toast('Usuario creado', 'ok');
@@ -1934,7 +1977,8 @@ async function createUser() {
   loadUsers();
 }
 
-function editUser(id, currentRole) {
+function editUser(id) {
+  const u = state.users.find(u => u.id === id) || {};
   openModal('✏️ Editar usuario', `
     <div class="form-grid">
       <div class="form-group">
@@ -1944,12 +1988,20 @@ function editUser(id, currentRole) {
       <div class="form-group">
         <label>Rol</label>
         <select id="eu-role">
-          <option value="usuario" ${currentRole === 'usuario' ? 'selected' : ''}>Usuario</option>
-          <option value="tecnico" ${currentRole === 'tecnico' ? 'selected' : ''}>Técnico</option>
-          <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Administrador</option>
+          <option value="usuario" ${u.role === 'usuario' ? 'selected' : ''}>Usuario</option>
+          <option value="tecnico" ${u.role === 'tecnico' ? 'selected' : ''}>Técnico</option>
+          <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Administrador</option>
         </select>
       </div>
-    </div>`, [
+      <div class="form-group">
+        <label>Email <span style="color:var(--text3)">(para notificaciones)</span></label>
+        <input id="eu-email" type="email" placeholder="correo@ejemplo.com" value="${escHtml(u.email || '')}">
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;margin-top:4px">
+      <input type="checkbox" id="eu-notify" ${u.notify_incidents ? 'checked' : ''} style="width:16px;height:16px">
+      Recibir notificación de nuevas incidencias
+    </label>`, [
     { label: 'Guardar', cls: 'btn-primary', fn: `saveUser(${id})` },
     { label: 'Cancelar', cls: 'btn-ghost', fn: 'closeModal' }
   ]);
@@ -1958,7 +2010,9 @@ function editUser(id, currentRole) {
 async function saveUser(id) {
   const password = document.getElementById('eu-pass').value;
   const role = document.getElementById('eu-role').value;
-  const r = await apiFetch('/api/users/' + id, { method: 'PUT', body: JSON.stringify({ password: password || undefined, role }) });
+  const email = document.getElementById('eu-email').value;
+  const notify_incidents = document.getElementById('eu-notify').checked;
+  const r = await apiFetch('/api/users/' + id, { method: 'PUT', body: JSON.stringify({ password: password || undefined, role, email, notify_incidents }) });
   if (!r.ok) return toast('Error', 'err');
   toast('Usuario actualizado', 'ok');
   closeModal();
@@ -1972,6 +2026,46 @@ async function deleteUser(id) {
   if (!r.ok) return toast(data.error || 'Error', 'err');
   toast('Usuario eliminado', 'ok');
   loadUsers();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EMAIL CONFIG
+// ═══════════════════════════════════════════════════════════════════
+async function loadEmailConfig() {
+  const r = await apiFetch('/api/config/email');
+  if (!r.ok) return;
+  const cfg = await r.json();
+  const u = document.getElementById('smtp-user');
+  const p = document.getElementById('smtp-pass');
+  const n = document.getElementById('smtp-notify-new');
+  if (u) u.value = cfg.smtp_user || '';
+  if (p) p.placeholder = cfg.has_pass ? '••••••••••••••••' : 'Introduce contraseña de aplicación';
+  if (n) n.checked = cfg.notify_new !== false;
+}
+
+async function saveEmailConfig() {
+  const el = document.getElementById('email-config-result');
+  const smtp_user = document.getElementById('smtp-user').value.trim();
+  const smtp_pass = document.getElementById('smtp-pass').value;
+  const notify_new = document.getElementById('smtp-notify-new').checked;
+  const r = await apiFetch('/api/config/email', { method: 'PUT', body: JSON.stringify({ smtp_user, smtp_pass: smtp_pass || undefined, notify_new }) });
+  if (!r.ok) { el.textContent = 'Error al guardar'; el.style.color = 'var(--red)'; return; }
+  el.textContent = '✅ Configuración guardada';
+  el.style.color = 'var(--green)';
+  loadEmailConfig();
+}
+
+async function sendTestEmail() {
+  const el = document.getElementById('email-config-result');
+  const to = document.getElementById('test-email-to').value.trim();
+  if (!to) { el.textContent = 'Introduce un email de prueba'; el.style.color = 'var(--red)'; return; }
+  el.textContent = 'Enviando…';
+  el.style.color = 'var(--text3)';
+  const r = await apiFetch('/api/config/email/test', { method: 'POST', body: JSON.stringify({ to }) });
+  const data = await r.json();
+  if (!r.ok) { el.textContent = 'Error: ' + (data.error || 'desconocido'); el.style.color = 'var(--red)'; return; }
+  el.textContent = `✅ Email enviado a ${to}`;
+  el.style.color = 'var(--green)';
 }
 
 // ═══════════════════════════════════════════════════════════════════

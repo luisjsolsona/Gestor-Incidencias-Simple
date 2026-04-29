@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const fs = require('fs');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -65,6 +66,8 @@ db.function('norm', normalizeStr);
 // Migrations
 try { db.exec("ALTER TABLE incidencias ADD COLUMN attachments TEXT DEFAULT '[]'"); } catch {}
 try { db.exec("UPDATE users SET role = 'tecnico' WHERE role = 'cofotap'"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN email TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN notify_incidents INTEGER DEFAULT 1"); } catch {}
 
 // Seed default data
 const adminExists = db.prepare("SELECT id FROM users WHERE role = 'admin'").get();
@@ -89,6 +92,68 @@ if (locCount.c === 0) {
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(__dirname));
+
+// ── EMAIL HELPERS ─────────────────────────────────────────────────────────────
+function getSmtpConfig() {
+  const user = db.prepare("SELECT value FROM config WHERE key='smtp_user'").get()?.value;
+  const pass = db.prepare("SELECT value FROM config WHERE key='smtp_pass'").get()?.value;
+  if (!user || !pass) return null;
+  return { user, pass };
+}
+
+async function sendMail(to, subject, html) {
+  const cfg = getSmtpConfig();
+  if (!cfg) return;
+  const t = nodemailer.createTransport({ service: 'gmail', auth: { user: cfg.user, pass: cfg.pass } });
+  await t.sendMail({ from: `Gestor Incidencias <${cfg.user}>`, to: Array.isArray(to) ? to.join(',') : to, subject, html });
+}
+
+async function notifyNewIncidencia(inc) {
+  try {
+    if (db.prepare("SELECT value FROM config WHERE key='notify_new'").get()?.value === '0') return;
+    const recipients = db.prepare(
+      "SELECT email FROM users WHERE (role='admin' OR role='tecnico') AND notify_incidents=1 AND email IS NOT NULL AND email != ''"
+    ).all().map(u => u.email);
+    if (!recipients.length) return;
+    const ub = inc.ubicacion_custom ? `${inc.ubicacion} – ${inc.ubicacion_custom}` : inc.ubicacion;
+    await sendMail(recipients, `[Nueva incidencia] ${inc.codigo} – ${ub}`,
+      `<div style="font-family:sans-serif;max-width:600px">
+        <h2 style="color:#1e293b;margin-bottom:16px">Nueva incidencia registrada</h2>
+        <table style="border-collapse:collapse;font-size:14px;width:100%">
+          <tr><td style="padding:5px 16px 5px 0;color:#64748b;width:130px">Código</td><td><strong>${inc.codigo}</strong></td></tr>
+          <tr><td style="padding:5px 16px 5px 0;color:#64748b">Comunicado por</td><td>${inc.nombre} &lt;${inc.email}&gt;</td></tr>
+          <tr><td style="padding:5px 16px 5px 0;color:#64748b">Ubicación</td><td>${ub}</td></tr>
+          <tr><td style="padding:5px 16px 5px 0;color:#64748b">Prioridad</td><td>${inc.prioridad}</td></tr>
+          <tr><td style="padding:5px 16px 5px 0;color:#64748b;vertical-align:top">Descripción</td><td>${inc.descripcion}</td></tr>
+        </table>
+      </div>`);
+  } catch (e) { console.error('[email] notifyNewIncidencia:', e.message); }
+}
+
+async function notifySolucion(inc, tecnicoId) {
+  try {
+    const tecnico = tecnicoId ? db.prepare("SELECT email, username FROM users WHERE id=?").get(tecnicoId) : null;
+    const toSet = new Set([inc.email, tecnico?.email].filter(Boolean));
+    if (!toSet.size) return;
+    const ub = inc.ubicacion_custom ? `${inc.ubicacion} – ${inc.ubicacion_custom}` : inc.ubicacion;
+    const solHtml = (inc.solucion || '')
+      .replace(/<img[^>]*src="data:[^"]*"[^>]*>/gi, '<em style="color:#94a3b8">[imagen adjunta]</em>');
+    await sendMail([...toSet], `[Resuelta] ${inc.codigo} – ${ub}`,
+      `<div style="font-family:sans-serif;max-width:600px">
+        <h2 style="color:#1e293b;margin-bottom:16px">Incidencia resuelta ✅</h2>
+        <table style="border-collapse:collapse;font-size:14px;width:100%">
+          <tr><td style="padding:5px 16px 5px 0;color:#64748b;width:130px">Código</td><td><strong>${inc.codigo}</strong></td></tr>
+          <tr><td style="padding:5px 16px 5px 0;color:#64748b">Ubicación</td><td>${ub}</td></tr>
+          <tr><td style="padding:5px 16px 5px 0;color:#64748b;vertical-align:top">Descripción</td><td>${inc.descripcion}</td></tr>
+        </table>
+        <div style="margin-top:20px;padding:16px;background:#f0fdf4;border-left:4px solid #16a34a;border-radius:4px">
+          <strong style="font-size:14px">Solución:</strong>
+          <div style="margin-top:8px;font-size:14px;line-height:1.7">${solHtml}</div>
+        </div>
+        <p style="font-size:12px;color:#94a3b8;margin-top:16px">Resuelto por: ${tecnico?.username || 'equipo técnico'}</p>
+      </div>`);
+  } catch (e) { console.error('[email] notifySolucion:', e.message); }
+}
 
 // Auth middleware
 function authMiddleware(roles = []) {
@@ -177,6 +242,8 @@ app.post('/api/incidencias', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(codigo, nombre, email, descripcion, ubicacion, ubicacion_custom || null, prioridad || 'normal', historial, JSON.stringify(attachments || []));
 
+  const newInc = db.prepare('SELECT * FROM incidencias WHERE id=?').get(result.lastInsertRowid);
+  notifyNewIncidencia(newInc);
   res.json({ id: result.lastInsertRowid, codigo, message: 'Incidencia creada correctamente' });
 });
 
@@ -271,6 +338,14 @@ app.put('/api/incidencias/:id', authMiddleware(['admin', 'tecnico']), (req, res)
     req.params.id
   );
 
+  // Enviar email si el estado pasa a 'cerrada' y hay solución
+  const newEstado = estado || inc.estado;
+  const newSolucion = (solucion !== undefined ? solucion : inc.solucion) || '';
+  if (estado === 'cerrada' && inc.estado !== 'cerrada' && newSolucion.replace(/<[^>]*>/g,'').trim()) {
+    const updatedInc = db.prepare('SELECT * FROM incidencias WHERE id=?').get(req.params.id);
+    notifySolucion(updatedInc, req.user.id);
+  }
+
   res.json({ ok: true });
 });
 
@@ -289,16 +364,17 @@ app.get('/api/stats', authMiddleware(['admin', 'tecnico', 'usuario']), (req, res
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
 app.get('/api/users', authMiddleware(['admin', 'tecnico']), (req, res) => {
-  const users = db.prepare('SELECT id, username, role, created_at FROM users').all();
+  const users = db.prepare('SELECT id, username, role, email, notify_incidents, created_at FROM users').all();
   res.json(users);
 });
 
 app.post('/api/users', authMiddleware(['admin']), (req, res) => {
-  const { username, password, role } = req.body;
+  const { username, password, role, email, notify_incidents } = req.body;
   if (!username || !password || !role) return res.status(400).json({ error: 'Datos incompletos' });
   const hash = bcrypt.hashSync(password, 10);
   try {
-    const result = db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run(username, hash, role);
+    const result = db.prepare('INSERT INTO users (username, password, role, email, notify_incidents) VALUES (?, ?, ?, ?, ?)')
+      .run(username, hash, role, email || '', notify_incidents !== false ? 1 : 0);
     res.json({ id: result.lastInsertRowid });
   } catch {
     res.status(400).json({ error: 'Usuario ya existe' });
@@ -306,14 +382,43 @@ app.post('/api/users', authMiddleware(['admin']), (req, res) => {
 });
 
 app.put('/api/users/:id', authMiddleware(['admin']), (req, res) => {
-  const { password, role } = req.body;
-  if (password) {
-    const hash = bcrypt.hashSync(password, 10);
-    db.prepare('UPDATE users SET password = ?, role = COALESCE(?, role) WHERE id = ?').run(hash, role || null, req.params.id);
-  } else {
-    db.prepare('UPDATE users SET role = COALESCE(?, role) WHERE id = ?').run(role || null, req.params.id);
-  }
+  const { password, role, email, notify_incidents } = req.body;
+  const hash = password ? bcrypt.hashSync(password, 10) : null;
+  db.prepare(`UPDATE users SET
+    ${hash ? 'password = ?,' : ''}
+    role = COALESCE(?, role),
+    email = COALESCE(?, email),
+    notify_incidents = COALESCE(?, notify_incidents)
+    WHERE id = ?`
+  ).run(...(hash ? [hash] : []), role || null, email !== undefined ? email : null, notify_incidents !== undefined ? (notify_incidents ? 1 : 0) : null, req.params.id);
   res.json({ ok: true });
+});
+
+// ── EMAIL CONFIG ──────────────────────────────────────────────────────────────
+app.get('/api/config/email', authMiddleware(['admin']), (req, res) => {
+  const smtp_user = db.prepare("SELECT value FROM config WHERE key='smtp_user'").get()?.value || '';
+  const has_pass  = !!db.prepare("SELECT value FROM config WHERE key='smtp_pass'").get()?.value;
+  const notify_new = db.prepare("SELECT value FROM config WHERE key='notify_new'").get()?.value !== '0';
+  res.json({ smtp_user, has_pass, notify_new });
+});
+
+app.put('/api/config/email', authMiddleware(['admin']), (req, res) => {
+  const { smtp_user, smtp_pass, notify_new } = req.body;
+  const set = db.prepare("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)");
+  if (smtp_user !== undefined) set.run('smtp_user', smtp_user.trim());
+  if (smtp_pass) set.run('smtp_pass', smtp_pass);
+  if (notify_new !== undefined) set.run('notify_new', notify_new ? '1' : '0');
+  res.json({ ok: true });
+});
+
+app.post('/api/config/email/test', authMiddleware(['admin']), async (req, res) => {
+  const { to } = req.body;
+  if (!to) return res.status(400).json({ error: 'Email destino requerido' });
+  try {
+    await sendMail([to], 'Email de prueba – Gestor Incidencias',
+      '<div style="font-family:sans-serif"><h2>✅ Prueba de configuración</h2><p>La configuración de correo funciona correctamente.</p></div>');
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/users/:id', authMiddleware(['admin']), (req, res) => {
