@@ -908,13 +908,22 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:20px">
           <div>
-            <div class="detail-label" style="margin-bottom:10px">Exportar</div>
+            <div class="detail-label" style="margin-bottom:10px">Exportar (backup JSON)</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-ghost btn-sm" onclick="exportarDatos('all')">⬇ Todo (backup completo)</button>
               <button class="btn btn-ghost btn-sm" onclick="exportarDatos('incidencias')">⬇ Incidencias</button>
               <button class="btn btn-ghost btn-sm" onclick="exportarDatos('ubicaciones')">⬇ Ubicaciones</button>
               <button class="btn btn-ghost btn-sm" onclick="exportarDatos('usuarios')">⬇ Usuarios</button>
             </div>
+          </div>
+          <div>
+            <div class="detail-label" style="margin-bottom:6px">Google Sheets</div>
+            <p style="font-size:13px;color:var(--text3);margin:0 0 10px">Exporta las incidencias en formato tabla para pegar o abrir directamente en Google Sheets.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-ghost btn-sm" onclick="copiarParaSheets()">📋 Copiar al portapapeles</button>
+              <button class="btn btn-ghost btn-sm" onclick="descargarCSV()">⬇ Descargar CSV</button>
+            </div>
+            <div id="sheets-result" style="margin-top:8px;font-size:13px;color:var(--text3)"></div>
           </div>
           <div>
             <div class="detail-label" style="margin-bottom:10px">Importar</div>
@@ -2008,6 +2017,89 @@ async function importarDatos(event) {
     result.style.color = 'var(--red)';
   }
   event.target.value = '';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GOOGLE SHEETS EXPORT
+// ═══════════════════════════════════════════════════════════════════
+const SHEETS_HEADERS = ['Código','Nombre','Email','Descripción','Ubicación','Estado','Prioridad','Asignado a','Solución','Fecha creación','Fecha actualización'];
+
+function fmtFecha(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric' })
+    + ' ' + d.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+}
+
+function escTSV(v) {
+  if (v == null) return '';
+  return String(v).replace(/\t/g, ' ').replace(/\r?\n/g, ' ');
+}
+
+function escCSV(v) {
+  if (v == null) return '';
+  const s = String(v);
+  if (s.includes('"') || s.includes(',') || s.includes('\n')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+async function fetchTodasIncidencias() {
+  const r = await apiFetch('/api/incidencias?limit=9999&page=1');
+  if (!r.ok) throw new Error('Error al obtener incidencias');
+  const json = await r.json();
+  return json.data || [];
+}
+
+function incToRow(inc) {
+  const ub = inc.ubicacion_custom ? `${inc.ubicacion} – ${inc.ubicacion_custom}` : inc.ubicacion;
+  return [
+    inc.codigo, inc.nombre, inc.email, inc.descripcion, ub,
+    inc.estado, inc.prioridad, inc.asignado_a || '',
+    inc.solucion || '', fmtFecha(inc.fecha_creacion), fmtFecha(inc.fecha_actualizacion)
+  ];
+}
+
+async function copiarParaSheets() {
+  const el = document.getElementById('sheets-result');
+  el.textContent = 'Obteniendo datos…';
+  try {
+    const rows = await fetchTodasIncidencias();
+    const lines = [SHEETS_HEADERS, ...rows.map(incToRow)]
+      .map(r => r.map(escTSV).join('\t')).join('\n');
+    await navigator.clipboard.writeText(lines);
+    el.textContent = `✅ ${rows.length} incidencias copiadas. Pega con Ctrl+V en Google Sheets.`;
+    el.style.color = 'var(--green)';
+    toast('Copiado al portapapeles', 'ok');
+  } catch (e) {
+    el.textContent = 'Error: ' + e.message;
+    el.style.color = 'var(--red)';
+  }
+}
+
+async function descargarCSV() {
+  const el = document.getElementById('sheets-result');
+  el.textContent = 'Generando CSV…';
+  try {
+    const rows = await fetchTodasIncidencias();
+    const lines = [SHEETS_HEADERS, ...rows.map(incToRow)]
+      .map(r => r.map(escCSV).join(',')).join('\n');
+    const bom = '﻿'; // BOM para que Excel/Sheets abra con UTF-8 correcto
+    const blob = new Blob([bom + lines], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `incidencias-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    el.textContent = `✅ CSV descargado con ${rows.length} incidencias.`;
+    el.style.color = 'var(--green)';
+    toast('CSV descargado', 'ok');
+  } catch (e) {
+    el.textContent = 'Error: ' + e.message;
+    el.style.color = 'var(--red)';
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════

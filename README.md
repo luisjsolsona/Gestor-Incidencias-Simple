@@ -12,6 +12,7 @@ Aplicación web para registrar y gestionar **incidencias técnicas** en centros 
 - Historial de cambios por incidencia
 - Búsqueda y filtros en tiempo real
 - Botón **Copiar resumen** para pegar en email o documento
+- **Exportación a Google Sheets**: copia al portapapeles o descarga CSV listo para pegar/abrir en Sheets
 - Compatible con Docker en cualquier plataforma (Linux, Windows, macOS, CasaOS)
 
 ---
@@ -35,6 +36,7 @@ Aplicación web para registrar y gestionar **incidencias técnicas** en centros 
 - **Gestión de ubicaciones** desde el panel admin (añadir, editar, eliminar, ordenar)
 - **Gestión de usuarios** desde el panel admin
 - **Estados**: Abierta 🔴 → En proceso 🟡 → Cerrada 🟢 / Reabierta 🟠 / Cancelada
+- **Exportación a Google Sheets** (solo admin): botón "Copiar al portapapeles" para pegar directamente en una hoja, o "Descargar CSV" para abrirlo desde Archivo → Importar en Google Sheets. Incluye todas las columnas: código, nombre, email, descripción, ubicación, estado, prioridad, técnico asignado, solución y fechas.
 
 ---
 
