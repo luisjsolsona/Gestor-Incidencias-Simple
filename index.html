@@ -2052,12 +2052,22 @@ async function fetchTodasIncidencias() {
   return json.data || [];
 }
 
+function htmlToPlain(html) {
+  if (!html) return '';
+  // Sustituir imágenes base64 antes de parsear (pueden ser enormes)
+  const sin = html.replace(/<img[^>]*src="data:[^"]*"[^>]*>/gi, '[imagen]')
+                  .replace(/<img[^>]*>/gi, '[imagen]');
+  const d = document.createElement('div');
+  d.innerHTML = sin;
+  return (d.textContent || d.innerText || '').trim();
+}
+
 function incToRow(inc) {
   const ub = inc.ubicacion_custom ? `${inc.ubicacion} – ${inc.ubicacion_custom}` : inc.ubicacion;
   return [
     inc.codigo, inc.nombre, inc.email, inc.descripcion, ub,
     inc.estado, inc.prioridad, inc.asignado_a || '',
-    inc.solucion || '', fmtFecha(inc.fecha_creacion), fmtFecha(inc.fecha_actualizacion)
+    htmlToPlain(inc.solucion), fmtFecha(inc.fecha_creacion), fmtFecha(inc.fecha_actualizacion)
   ];
 }
 
