@@ -136,10 +136,50 @@ async function notifySolucion(inc, tecnicoId) {
     const toSet = new Set([inc.email, tecnico?.email].filter(Boolean));
     if (!toSet.size) return;
     const ub = inc.ubicacion_custom ? `${inc.ubicacion} – ${inc.ubicacion_custom}` : inc.ubicacion;
-    const solHtml = (inc.solucion || '')
-      .replace(/<img[^>]*src="data:[^"]*"[^>]*>/gi, '<em style="color:#94a3b8">[imagen adjunta]</em>');
-    await sendMail([...toSet], `[Resuelta] ${inc.codigo} – ${ub}`,
-      `<div style="font-family:sans-serif;max-width:600px">
+
+    // Build attachments for nodemailer
+    const attachList = JSON.parse(inc.attachments || '[]');
+    const nodemailerAttachments = attachList.map((a, i) => {
+      // data URIs: "data:<mime>;base64,<data>"
+      const match = (a.data || '').match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) return null;
+      return {
+        filename: a.name || `adjunto_${i + 1}`,
+        content: match[2],
+        encoding: 'base64',
+        contentType: match[1],
+        // Inline images get a CID so they show inside the email body
+        ...(match[1].startsWith('image/') ? { cid: `att_${i}@incidencias` } : {})
+      };
+    }).filter(Boolean);
+
+    // Replace data-uri <img> tags with cid: references for inline display
+    let solHtml = inc.solucion || '';
+    attachList.forEach((a, i) => {
+      if (a.type && a.type.startsWith('image/')) {
+        solHtml = solHtml.replace(
+          new RegExp(`src="${a.data.substring(0, 40).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^"]*"`, 'g'),
+          `src="cid:att_${i}@incidencias"`
+        );
+      }
+    });
+    // Strip any remaining data-uri images that weren't matched
+    solHtml = solHtml.replace(/<img[^>]*src="data:[^"]*"[^>]*>/gi, '<em style="color:#94a3b8">[imagen adjunta]</em>');
+
+    // Attachment list footer
+    const nonImageAtts = attachList.filter(a => !a.type?.startsWith('image/'));
+    const attFooter = nonImageAtts.length
+      ? `<div style="margin-top:12px;font-size:13px;color:#64748b">📎 Archivos adjuntos: ${nonImageAtts.map(a => `<strong>${a.name}</strong>`).join(', ')}</div>`
+      : '';
+
+    const cfg = getSmtpConfig();
+    if (!cfg) return;
+    const t = nodemailer.createTransport({ service: 'gmail', auth: { user: cfg.user, pass: cfg.pass } });
+    await t.sendMail({
+      from: `Gestor Incidencias <${cfg.user}>`,
+      to: [...toSet].join(','),
+      subject: `[Resuelta] ${inc.codigo} – ${ub}`,
+      html: `<div style="font-family:sans-serif;max-width:600px">
         <h2 style="color:#1e293b;margin-bottom:16px">Incidencia resuelta ✅</h2>
         <table style="border-collapse:collapse;font-size:14px;width:100%">
           <tr><td style="padding:5px 16px 5px 0;color:#64748b;width:130px">Código</td><td><strong>${inc.codigo}</strong></td></tr>
@@ -149,9 +189,12 @@ async function notifySolucion(inc, tecnicoId) {
         <div style="margin-top:20px;padding:16px;background:#f0fdf4;border-left:4px solid #16a34a;border-radius:4px">
           <strong style="font-size:14px">Solución:</strong>
           <div style="margin-top:8px;font-size:14px;line-height:1.7">${solHtml}</div>
+          ${attFooter}
         </div>
         <p style="font-size:12px;color:#94a3b8;margin-top:16px">Resuelto por: ${tecnico?.username || 'equipo técnico'}</p>
-      </div>`);
+      </div>`,
+      attachments: nodemailerAttachments
+    });
   } catch (e) { console.error('[email] notifySolucion:', e.message); }
 }
 
@@ -187,7 +230,7 @@ app.post('/api/login', (req, res) => {
   if (!user || !bcrypt.compareSync(password, user.password)) {
     return res.status(401).json({ error: 'Credenciales incorrectas' });
   }
-  const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
+  const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '30d' });
   res.json({ token, role: user.role, username: user.username });
 });
 

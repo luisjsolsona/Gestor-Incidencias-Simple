@@ -515,14 +515,71 @@
   .chip:hover { border-color: var(--accent); color: var(--accent); }
   .chip.active { background: var(--accent); border-color: var(--accent); color: white; }
 
-  /* RESPONSIVE */
-  @media (max-width: 640px) {
-    main { padding: 16px; }
+  /* RESPONSIVE — MOBILE FIRST */
+  @media (max-width: 768px) {
+    main { padding: 12px; }
     .form-grid { grid-template-columns: 1fr; }
     .detail-grid { grid-template-columns: 1fr; }
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    header { padding: 0 16px; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .stat-card { padding: 12px; }
+    .stat-num { font-size: 22px; }
+    header { padding: 0 12px; height: 52px; }
     .header-subtitle { display: none; }
+    .header-title { font-size: 14px; }
+    .user-badge { padding: 4px 8px; font-size: 12px; }
+    .btn { padding: 8px 12px; font-size: 13px; }
+    .btn-sm { padding: 6px 10px; font-size: 12px; }
+    /* Make buttons taller for touch */
+    input, select, textarea { font-size: 16px !important; /* prevent iOS zoom */ padding: 12px 14px; }
+    /* Nav scroll horizontal */
+    nav { padding: 0 8px; }
+    .nav-btn { padding: 12px 12px; font-size: 13px; }
+    /* Modal full screen on mobile */
+    .modal-overlay { padding: 0; align-items: flex-end; }
+    .modal { max-width: 100%; width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0; }
+    .modal-body { padding: 16px; }
+    .modal-header { padding: 14px 16px; }
+    .modal-footer { padding: 12px 16px; flex-wrap: wrap; }
+    .modal-footer .btn { flex: 1; justify-content: center; }
+    /* Table → card layout on mobile */
+    #tabla-incidencias tr { display: none; }
+    .mobile-card { display: block !important; }
+    /* Bulk bar */
+    #bulk-bar { font-size: 13px; gap: 6px; }
+    #bulk-bar select { min-width: 120px; font-size: 12px; }
+    /* Detail grid */
+    .login-card { padding: 24px 20px; margin: 16px; border-radius: 12px; }
+    /* Search bar */
+    .search-bar { flex-direction: column; }
+    .search-bar input, .search-bar select { width: 100%; min-width: unset; }
+    /* Chips wrap nicely */
+    .filter-chips { gap: 4px; }
+    .chip { padding: 5px 10px; font-size: 12px; }
+    /* Section titles */
+    .section-title { font-size: 18px; }
+    /* Card padding */
+    .card { padding: 16px; }
+    .card-header { margin-bottom: 14px; padding-bottom: 12px; }
+  }
+  /* Mobile card for incidencias table */
+  .mobile-card {
+    display: none;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .mobile-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(37,99,235,0.08); }
+  .mobile-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+  .mobile-card-desc { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; line-height: 1.4; }
+  .mobile-card-meta { font-size: 12px; color: var(--text3); display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  /* Toast on mobile */
+  @media (max-width: 768px) {
+    #toast-container { bottom: 12px; right: 12px; left: 12px; }
+    .toast { min-width: unset; }
   }
 
   /* PAGES */
@@ -658,6 +715,26 @@
 <body>
 <div id="toast-container"></div>
 
+<!-- FAB: Consulta resueltas (solo visible en página pública) -->
+<div id="fab-resueltas" style="
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:var(--accent);color:white;
+  padding:12px 20px;border-radius:30px;
+  font-family:var(--font-sans);font-size:14px;font-weight:700;
+  box-shadow:0 4px 20px rgba(37,99,235,0.35);
+  cursor:pointer;z-index:90;
+  display:none;
+  align-items:center;gap:8px;
+  border:none;
+  white-space:nowrap;
+  animation: fabIn 0.3s ease;
+" onclick="document.getElementById('seccion-resueltas').scrollIntoView({behavior:'smooth'});document.getElementById('pub-search-resolved').focus()">
+  🔍 Consultar incidencias resueltas
+</div>
+<style>
+@keyframes fabIn { from { opacity:0; transform:translateX(-50%) translateY(12px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+</style>
+
 <!-- LOGIN SCREEN -->
 <div id="login-screen" style="display:none">
   <div class="login-wrap">
@@ -693,7 +770,7 @@
       <div class="header-icon">🚨</div>
       <div>
         <div class="header-title">GestorIncidencias</div>
-        <div class="header-subtitle">Centro Educativo · v1.0</div>
+        <div class="header-subtitle">Centro Educativo · v1.1</div>
       </div>
     </div>
     <div class="header-right">
@@ -753,7 +830,11 @@
               </select>
             </div>
             <div class="form-group full">
-              <label>Descripción del problema <span class="required">*</span></label>
+              <label>Descripción del problema <span class="required">*</span>
+                <span style="float:right;font-weight:400;color:var(--accent);cursor:pointer;font-size:12px" onclick="document.getElementById('seccion-resueltas').scrollIntoView({behavior:'smooth'});document.getElementById('pub-search-resolved').focus()">
+                  🔍 ¿Ya existe solución? Consúltala →
+                </span>
+              </label>
               <textarea name="descripcion" placeholder="Describe el problema con el mayor detalle posible: qué ocurre, desde cuándo, si hay algún error visible..." required style="min-height:130px"></textarea>
             </div>
           </div>
@@ -789,7 +870,7 @@
       </div>
 
       <!-- INCIDENCIAS RESUELTAS (público) -->
-      <div class="card" style="margin-top:24px">
+      <div class="card" style="margin-top:24px" id="seccion-resueltas">
         <div class="card-header">
           <div class="card-title">🔍 Consulta incidencias resueltas</div>
           <span style="font-size:13px;color:var(--text3)">Busca si tu problema ya tiene solución</span>
@@ -1058,8 +1139,10 @@ async function init() {
 }
 
 async function verifyToken() {
-  const r = await apiFetch('/api/stats');
-  if (!r.ok) throw new Error('Invalid token');
+  // Only treat a real 401 as invalid — network errors keep the session alive
+  let r;
+  try { r = await apiFetch('/api/stats'); } catch { return; } // offline/slow → keep session
+  if (r.status === 401 || r.status === 403) throw new Error('Invalid token');
 }
 
 function showPublicOnly() {
@@ -1074,9 +1157,24 @@ function showPublicOnly() {
   document.getElementById('btn-nueva-inc').style.display = 'none';
   switchPage('public', null);
   loadResolved();
+  // Show FAB after short delay (form is visible, resolved section below fold)
+  setTimeout(() => {
+    const fab = document.getElementById('fab-resueltas');
+    if (fab) fab.style.display = 'flex';
+  }, 800);
+  // Hide FAB when resolved section is visible
+  const observer = new IntersectionObserver(entries => {
+    const fab = document.getElementById('fab-resueltas');
+    if (!fab) return;
+    fab.style.display = entries[0].isIntersecting ? 'none' : 'flex';
+  }, { threshold: 0.2 });
+  const target = document.getElementById('seccion-resueltas');
+  if (target) observer.observe(target);
 }
 
 function showApp() {
+  const fab = document.getElementById('fab-resueltas');
+  if (fab) fab.style.display = 'none';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('main-app').style.display = 'flex';
   document.getElementById('main-app').style.flexDirection = 'column';
@@ -1580,40 +1678,85 @@ async function loadIncidencias() {
   } catch {}
 }
 
+function isMobile() { return window.innerWidth <= 768; }
+
 function renderIncidencias(data) {
   const tbody = document.getElementById('tabla-incidencias');
   if (!tbody) return;
   populateAsignadoFilter(data.data);
+
+  // Remove any existing mobile cards
+  document.querySelectorAll('.mobile-card').forEach(c => c.remove());
+
   if (!data.data.length) {
     tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📂</div><p>No hay incidencias</p></div></td></tr>';
     document.getElementById('pagination').innerHTML = '';
     return;
   }
-  tbody.innerHTML = data.data.map(i => `
-    <tr onclick="rowClick(event,${i.id})" data-id="${i.id}">
-      <td onclick="event.stopPropagation()" style="width:40px;text-align:center">
-        <input type="checkbox" class="row-check" id="chk-${i.id}" onchange="toggleSelect(${i.id})">
-      </td>
-      <td class="td-mono">${i.codigo}</td>
-      <td>
-        <div style="font-weight:600;margin-bottom:2px">${escHtml(i.nombre)}</div>
-        <div class="td-sub" style="white-space:normal;line-height:1.4">${escHtml(i.descripcion.substring(0, 120))}${i.descripcion.length > 120 ? '…' : ''}</div>
-      </td>
-      <td>${escHtml(i.ubicacion)}${i.ubicacion_custom ? `<div class="td-sub">${escHtml(i.ubicacion_custom)}</div>` : ''}</td>
-      <td>${badgeEstado(i.estado)}</td>
-      <td><span class="badge prioridad-${i.prioridad}">${i.prioridad}</span></td>
-      <td style="font-size:12px;color:var(--text3);white-space:nowrap">${formatDate(i.fecha_creacion)}</td>
-    </tr>`).join('');
+
+  if (isMobile()) {
+    // Mobile: render cards outside the table, hide table rows
+    tbody.innerHTML = '';
+    const wrap = tbody.closest('.card') || tbody.closest('.table-wrap')?.parentElement;
+    const tableCard = tbody.closest('.card');
+    // Insert cards before the table-wrap
+    const tableWrap = tbody.closest('.table-wrap');
+    const cardsHtml = data.data.map(i => `
+      <div class="mobile-card" onclick="openIncidencia(${i.id})">
+        <div class="mobile-card-top">
+          <span class="td-mono" style="font-size:13px">${i.codigo}</span>
+          ${badgeEstado(i.estado)}
+          <span class="badge prioridad-${i.prioridad}" style="margin-left:auto">${i.prioridad}</span>
+        </div>
+        <div class="mobile-card-desc">${escHtml(i.nombre)}</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:6px;line-height:1.4">${escHtml(i.descripcion.substring(0,100))}${i.descripcion.length>100?'…':''}</div>
+        <div class="mobile-card-meta">
+          <span>📍 ${escHtml(i.ubicacion)}</span>
+          <span>📅 ${formatDate(i.fecha_creacion)}</span>
+          ${i.asignado_a ? `<span>👤 ${escHtml(i.asignado_a)}</span>` : ''}
+        </div>
+      </div>`).join('');
+
+    // Insert before table-wrap inside the card
+    if (tableWrap) tableWrap.insertAdjacentHTML('beforebegin', cardsHtml);
+    tableWrap.style.display = 'none'; // hide table on mobile
+  } else {
+    // Restore table on desktop
+    const tableWrap = tbody.closest('.table-wrap');
+    if (tableWrap) tableWrap.style.display = '';
+    tbody.innerHTML = data.data.map(i => `
+      <tr onclick="rowClick(event,${i.id})" data-id="${i.id}">
+        <td onclick="event.stopPropagation()" style="width:40px;text-align:center">
+          <input type="checkbox" class="row-check" id="chk-${i.id}" onchange="toggleSelect(${i.id})">
+        </td>
+        <td class="td-mono">${i.codigo}</td>
+        <td>
+          <div style="font-weight:600;margin-bottom:2px">${escHtml(i.nombre)}</div>
+          <div class="td-sub" style="white-space:normal;line-height:1.4">${escHtml(i.descripcion.substring(0, 120))}${i.descripcion.length > 120 ? '…' : ''}</div>
+        </td>
+        <td>${escHtml(i.ubicacion)}${i.ubicacion_custom ? `<div class="td-sub">${escHtml(i.ubicacion_custom)}</div>` : ''}</td>
+        <td>${badgeEstado(i.estado)}</td>
+        <td><span class="badge prioridad-${i.prioridad}">${i.prioridad}</span></td>
+        <td style="font-size:12px;color:var(--text3);white-space:nowrap">${formatDate(i.fecha_creacion)}</td>
+      </tr>`).join('');
+  }
 
   const pag = document.getElementById('pagination');
   pag.innerHTML = `
-    <span>Mostrando ${data.data.length} de ${data.total} incidencias</span>
+    <span style="font-size:12px">Mostrando ${data.data.length} de ${data.total}</span>
     <div style="display:flex;gap:6px">
-      <button class="btn btn-ghost btn-sm" ${data.page <= 1 ? 'disabled' : ''} onclick="changePage(${data.page - 1})">← Anterior</button>
-      <span style="padding:5px 10px;background:var(--bg3);border-radius:6px;border:1px solid var(--border)">${data.page}/${data.pages}</span>
-      <button class="btn btn-ghost btn-sm" ${data.page >= data.pages ? 'disabled' : ''} onclick="changePage(${data.page + 1})">Siguiente →</button>
+      <button class="btn btn-ghost btn-sm" ${data.page <= 1 ? 'disabled' : ''} onclick="changePage(${data.page - 1})">← Ant</button>
+      <span style="padding:5px 10px;background:var(--bg3);border-radius:6px;border:1px solid var(--border);font-size:12px">${data.page}/${data.pages}</span>
+      <button class="btn btn-ghost btn-sm" ${data.page >= data.pages ? 'disabled' : ''} onclick="changePage(${data.page + 1})">Sig →</button>
     </div>`;
 }
+
+// Re-render on orientation change / resize
+window.addEventListener('resize', () => {
+  if (state.incidencias?.length && state.currentPage === 'incidencias') {
+    renderIncidencias({ data: state.incidencias, total: state.incidencias.length, page: state.currentPage_num, pages: state.totalPages });
+  }
+});
 
 function changePage(p) {
   state.currentPage_num = p;
