@@ -1445,34 +1445,38 @@ function switchPage(name, btn) {
 // ── MOBILE MENU ───────────────────────────────────────────────────────────────
 function buildMobileMenu() {
   const isLoggedIn = !!state.token;
-  const userEl = document.getElementById('mobile-menu-user');
-  const navEl = document.getElementById('mobile-nav-links');
-  const footEl = document.getElementById('mobile-menu-footer');
+  const userEl = document.getElementById("mobile-menu-user");
+  const navEl = document.getElementById("mobile-nav-links");
+  const footEl = document.getElementById("mobile-menu-footer");
   if (!userEl || !navEl || !footEl) return;
 
   if (isLoggedIn) {
-    userEl.innerHTML = \`
-      <div class="m-username">\${state.username}</div>
-      <span class="role-tag role-\${state.role}" style="font-size:13px">\${state.role}</span>\`;
+    userEl.innerHTML =
+      "<div class=\"m-username\">" + escHtml(state.username) + "</div>" +
+      "<span class=\"role-tag role-" + state.role + "\" style=\"font-size:13px\">" + state.role + "</span>";
   } else {
-    userEl.innerHTML = '<div class="m-username" style="color:var(--text3)">GestorIncidencias</div>';
+    userEl.innerHTML = "<div class=\"m-username\" style=\"color:var(--text3)\">GestorIncidencias</div>";
   }
 
-  let navItems = '';
+  const badgeEl = document.getElementById("badge-abiertas");
+  const badgeNum = badgeEl && badgeEl.style.display !== "none" ? badgeEl.textContent.trim() : "";
+  const badgeHtml = badgeNum ? "<span class=\"m-badge\">" + badgeNum + "</span>" : "";
+
+  let navItems = "";
   if (isLoggedIn) {
-    navItems += \`<button class="mobile-nav-btn \${state.currentPage==='incidencias'?'active':''}" data-page="incidencias" onclick="navGo('incidencias',this)">
-      🗂️ Incidencias
-      \${document.getElementById('badge-abiertas')?.textContent ? '<span class=\'m-badge\'>' + document.getElementById('badge-abiertas').textContent + '</span>' : ''}
-    </button>\`;
-    if (state.role === 'admin' || state.role === 'tecnico') {
-      navItems += \`<button class="mobile-nav-btn \${state.currentPage==='ajustes'?'active':''}" data-page="ajustes" onclick="navGo('ajustes',this)">⚙️ Ajustes</button>\`;
+    const incActive = state.currentPage === "incidencias" ? " active" : "";
+    navItems += "<button class=\"mobile-nav-btn" + incActive + "\" data-page=\"incidencias\" onclick=\"navGo('incidencias',this)\">" +
+      "&#128193; Incidencias " + badgeHtml + "</button>";
+    if (state.role === "admin" || state.role === "tecnico") {
+      const ajActive = state.currentPage === "ajustes" ? " active" : "";
+      navItems += "<button class=\"mobile-nav-btn" + ajActive + "\" data-page=\"ajustes\" onclick=\"navGo('ajustes',this)\">&#9881;&#65039; Ajustes</button>";
     }
-    footEl.innerHTML = \`
-      <button class="btn btn-primary" onclick="closeMobileMenu();showPublicFormModal()">+ Nueva incidencia</button>
-      <button class="btn btn-ghost" onclick="doLogout()">Cerrar sesión</button>\`;
+    footEl.innerHTML =
+      "<button class=\"btn btn-primary\" onclick=\"closeMobileMenu();showPublicFormModal()\">+ Nueva incidencia</button>" +
+      "<button class=\"btn btn-ghost\" onclick=\"doLogout()\">Cerrar sesi\u00f3n</button>";
   } else {
-    navItems = \`<button class="mobile-nav-btn" onclick="closeMobileMenu();showLogin()">🔐 Panel de gestión</button>\`;
-    footEl.innerHTML = '';
+    navItems = "<button class=\"mobile-nav-btn\" onclick=\"closeMobileMenu();showLogin()\">&#128272; Panel de gesti\u00f3n</button>";
+    footEl.innerHTML = "";
   }
   navEl.innerHTML = navItems;
 }
